@@ -1,0 +1,30 @@
+・各ファイルについて
+CheckTable.cpp:データベースの中身を見るためのもの
+CombTable.cpp:分割して作成したデータベースを1つのデータベースにする
+debug.cpp:ラベルを確認したい配置を自分で作って、その配置のラベルを確認するためのもの
+main.cpp:後退解析の本体
+main_16.cpp:16手目(最終手)用に空のデータベースを作る
+notmaketable.cpp:データベースを新しく作成せずに後退解析を行う。検証用
+posi_yonoku.cpp:合法手の列挙など、配置操作系に関するものが入っている
+run_maketable(_b).sh:本研究では並列化しない代わりに、1つの計算を4つに分割(あるインデックスを4で割った余りが0,1,2,3かで分割)しており、4つまとめて実行するためのシェルスクリプト
+table.cpp:テーブル系のものが入っている
+zdd_yonoku.cpp:zdd系のものが入っている
+
+・実行について
+各手数で白視点の配置に対するラベルと黒視点の配置に対するラベルを付けている。そのため、各手数においてデータベースは2つできる。
+データベースを作成するときは基本的にmain.cppの一番下のところでコメントアウトしている
+//  g++ -O2 -Wall -pthread main.cpp zdd_yonoku.cpp posi_yonoku.cpp table.cpp -std=c++14 -o maketable.out 2>&1
+//  ./run_maktable.sh &
+//  ./run_maketable_b.sh &
+を行う。run_maktable.shとrun_maketable_b.shはそれぞれ白視点、黒視点の配置にラベルをつける。これらの中身について、例えばrun_maktable.shでは
+for n in {0..3}; do
+    ./maketable.out 0 0 4 "$n" db db db > "0_4_${n}_w.txt" 2>&1 &
+done
+となっている。コマンドライン引数は
+./maketable.out (手数、最終手が16、初期配置は0) (視点、0が白視点、1が黒視点) (分割数) "$n" db db db > "(手数)_(分割数)_${(何分割目か)}_w.txt" 2>&1 &
+となっており、例では白視点の0手目のデータベースを作成する。実行の度にいじるのは手数だけでよい。他の関数でもコマンドライン引数の順番は同じ(はず)。
+4分割した実行が終わった際は、
+//  g++ -O2 -Wall -pthread CombTable.cpp table.cpp -std=c++14 -o combtab.out 2>&1
+//  ./combtab.out 11 1 4 black_table black_table_11_4_0.bin black_table_11_4_1.bin black_table_11_4_2.bin black_table_11_4_3.bin db db db db db > 11_b_new2.txt 2>&1 &
+//  ./combtab.out 11 0 4 white_table white_table_11_4_0.bin white_table_11_4_1.bin white_table_11_4_2.bin white_table_11_4_3.bin db db db db db > 11_w_new2.txt 2>&1 &
+で4つのデータベースを1つに統合する。例では11手目の黒(白)視点のデータベースについて、分割して作った4つのデータベースを1つに統合している。データベースの名前は(視点プレイヤ)_table_(手数)_(分割数)_(何番目の分割か).bin、完成形のデータベースの名前は(視点プレイヤ)_table_(手数).binになる。
