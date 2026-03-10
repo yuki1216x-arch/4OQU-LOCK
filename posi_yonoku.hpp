@@ -40,7 +40,7 @@ public:
     bool check_ok() noexcept;
     int make_action(const Action & action, int vision, int turn) noexcept;
     //void unmake_action(const Action & action) noexcept;
-    int BoardCheck2(int vision, int turn) noexcept;
+    int TerminalTest(int vision, int turn) noexcept;
 };
 
 #endif

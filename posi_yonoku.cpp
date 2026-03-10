@@ -167,7 +167,7 @@ int Posi::compute_actions(Action actions[1000], int vision, int turn) noexcept {
     assert(vision >= 0 && vision <= 1);
     assert(turn >= 0 && turn <= 15);
 
-    int bc = BoardCheck2(vision, turn); //終端チェック
+    int bc = TerminalTest(vision, turn); //終端チェック
 
     if(bc == 2) {
         //cout << "-1" << endl;
@@ -666,7 +666,7 @@ int Posi::BoardCheck(int a, int b) noexcept {
     // else return false;
 }
 
-int Posi::BoardCheck2(int vision, int turn) noexcept { //初期判定
+int Posi::TerminalTest(int vision, int turn) noexcept { //初期判定
     int i, j;
     int result1, result2;
     int flg1 = 0;
@@ -695,7 +695,11 @@ int Posi::BoardCheck2(int vision, int turn) noexcept { //初期判定
     }
     if(vision == 0) {
         if(flg1 == 1 && flg2 == 1) {
-            result2 = 1; //unknown
+	  if(turn % 2 == 0) result2 = 3; //白手番の配置ですでに両プレイヤがテトロミノを作っていたら、白プレイヤ勝ち
+	  else {
+		assert(turn % 2 == 1);
+		result2 = 2; //黒手番の配置ですでに両プレイヤがテトロミノを作っていたら、白プレイヤ負け
+	  }
         } else if(flg1 == 1 && flg2 == 0) {
             result2 = 2; //白プレイヤ勝ち
         } else if(flg1 == 0 && flg2 == 1) {
@@ -709,7 +713,11 @@ int Posi::BoardCheck2(int vision, int turn) noexcept { //初期判定
         }
     } else {
         if(flg1 == 1 && flg2 == 1) {
-            result2 = 1; //unknown
+	  if(turn % 2 == 0) result2 = 3; //白手番の配置ですでに両プレイヤがテトロミノを作っていたら、黒プレイヤ負け
+	  else {
+		assert(turn % 2 == 1);
+		result2 = 2; //黒手番の配置ですでに両プレイヤがテトロミノを作っていたら、黒プレイヤ勝ち
+	  }
         } else if(flg1 == 1 && flg2 == 0) {
             result2 = 3; //黒プレイヤ負け
         } else if(flg1 == 0 && flg2 == 1) {
