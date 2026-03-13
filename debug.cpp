@@ -57,42 +57,42 @@ int main(int argc, char *argv[]) {
 
     unsigned char array_objid[32] = {};
     array_objid[0] = 0;
-    array_objid[1] = 1;
-    array_objid[2] = 1;
-    array_objid[3] = 1;
-    array_objid[4] = 2;
-    array_objid[5] = 1;
-    array_objid[6] = 1;
-    array_objid[7] = 1;
+    array_objid[1] = 0;
+    array_objid[2] = 0;
+    array_objid[3] = 0;
+    array_objid[4] = 0;
+    array_objid[5] = 0;
+    array_objid[6] = 0;
+    array_objid[7] = 0;
 
-    array_objid[8] = 2;
-    array_objid[9] = 0;
+    array_objid[8] = 1;
+    array_objid[9] = 4;
     array_objid[10] = 0;
     array_objid[11] = 0;
 
-    array_objid[12] = 0;
-    array_objid[13] = 0;
-    array_objid[14] = 0;
+    array_objid[12] = 1;
+    array_objid[13] = 4;
+    array_objid[14] = 5;
     array_objid[15] = 0;
 
     array_objid[16] = 0;
-    array_objid[17] = 0;
-    array_objid[18] = 0;
+    array_objid[17] = 2;
+    array_objid[18] = 5;
     array_objid[19] = 0;
 
-    array_objid[20] = 0;
-    array_objid[21] = 0;
-    array_objid[22] = 0;
-    array_objid[23] = 0;
+    array_objid[20] = 1;
+    array_objid[21] = 2;
+    array_objid[22] = 2;
+    array_objid[23] = 2;
 
-    array_objid[24] = 1;
-    array_objid[25] = 3;
-    array_objid[26] = 3;
-    array_objid[27] = 3;
-    array_objid[28] = 3;
-    array_objid[29] = 3;
-    array_objid[30] = 3;
-    array_objid[31] = 3;
+    array_objid[24] = 0;
+    array_objid[25] = 0;
+    array_objid[26] = 0;
+    array_objid[27] = 0;
+    array_objid[28] = 0;
+    array_objid[29] = 0;
+    array_objid[30] = 0;
+    array_objid[31] = 1;
 
     unsigned long long int i = zdd_check->compute_id(array_objid);
     p.make_posi(i, *zdd_check);
