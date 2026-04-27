@@ -116,35 +116,30 @@ unsigned long long int getzddnum(const ZDD_base& zdd, string fen_str) noexcept {
 
 //---.exe iter read_file write_file
 int main(int argc, char *argv[]) {
-  int iteration = atoi(argv[1]); //手数
-  int vision = atoi(argv[2]); //0なら白視点，1なら黒視点
-  // unsigned long long int parent_table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL; //親のtable size
+  int iteration = atoi(argv[1]); // number of moves
+  int vision = atoi(argv[2]); // 0: white's perspective, 1: black's perspective
+  // unsigned long long int parent_table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL; // parent table size
   string base_filename = base[vision];
   string read_filename_str = base_filename + '_' + to_string(iteration) + ".bin";
   
-  unique_ptr<ZDD_base> zdd_check;
-  if(vision == 0) {
-    zdd_check = make_unique<ZDD_White>(iteration);
-  } else {
-    zdd_check = make_unique<ZDD_Black>(iteration);
-  }
+  unique_ptr<ZDD> zdd_check = make_unique<ZDD>(vision, iteration);
   Posi p;
 
   unsigned long long int position_id = getzddnum(*zdd_check, argv[3]);
   unsigned long long int seek_id = (position_id / 2) + 1;
 
-  std::cout << "この配置のid：" << position_id << endl;
+  std::cout << "id of this configuration：" << position_id << endl;
 
   p.make_posi(position_id, *zdd_check);
   p.print();
 
   std::ifstream file(read_filename_str, std::ios::binary);
   if (!file) {
-    std::cerr << "ファイルを開けませんでした\n";
+    std::cerr << "Failed to open the file\n";
     return 1;
   }
   
-  file.seekg(static_cast<std::streamoff>(seek_id)); // ← 読みたいnバイト目（0始まり）
+  file.seekg(static_cast<std::streamoff>(seek_id)); // ← byte offset to read (0-based)
 
   char byte;
   file.read(&byte, 1);
@@ -154,15 +149,15 @@ int main(int argc, char *argv[]) {
 
   file.close();
 
-  std::cout << "ラベルid：" << val << endl;
+  std::cout << "label index = " << val;
 
-  if (val == v_unknown) std::cout << "ラベル：不明" << endl;
-  else if (val == v_win) std::cout << "ラベル：必勝" << endl;
-  else if (val == v_lose) std::cout << "ラベル：必敗" << endl;
-  else if (val == v_draw) std::cout << "ラベル：引き分け" << endl;
-  else if (val == v_notlose) std::cout << "ラベル：負けなし" << endl;
+  if (val == v_unknown) std::cout << ", label: unknown" << endl;
+  else if (val == v_win) std::cout << ", label：win" << endl;
+  else if (val == v_lose) std::cout << ", label：lose" << endl;
+  else if (val == v_draw) std::cout << ", label：draw" << endl;
+  else if (val == v_notlose) std::cout << ", label：notlose" << endl;
   else {
     assert(val == v_notwin);
-    std::cout << "ラベル：勝ちなし" << endl;
+    std::cout << ", lable：notwin" << endl;
   }
 }

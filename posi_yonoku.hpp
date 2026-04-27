@@ -21,14 +21,14 @@ private:
     LocInfo m_locs_info[46];
 public:
     Posi() noexcept;
-    Posi(unsigned long long int x, const ZDD_base& zdd) noexcept;
-    void make_posi(unsigned long long int x, const ZDD_base& zdd) noexcept;
+    Posi(unsigned long long int x, const ZDD& zdd) noexcept;
+    void make_posi(unsigned long long int x, const ZDD& zdd) noexcept;
     void make_posi_n(unsigned char zdd_code[12][46], int n) noexcept;
     void make_posi_opponent() noexcept;
     void make_posi_myself() noexcept;
     void print() const noexcept;
     int compute_actions(Action actions[1000], int vision, int turn) noexcept;
-    unsigned long long int getzddnum(const ZDD_base& zdd) const noexcept;
+    unsigned long long int getzddnum(const ZDD& zdd) const noexcept;
     int getobjnum(const LocInfo& a) noexcept;
     int getunknowninfo(unsigned char zdd_code[12][46], int vision, int turn) noexcept;
     bool is_opp_uninfo(unsigned char board_belief[12][46], int vision, int iteration) noexcept;

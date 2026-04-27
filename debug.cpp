@@ -25,15 +25,10 @@ constexpr unsigned long long int placement_count[2][17] {
 //---.exe iter read_file write_file
 int main(int argc, char *argv[]) {
     int iteration = atoi(argv[1]);
-    int vision = atoi(argv[2]); //0なら白視点, 1なら黒視点
-    unsigned long long int parent_table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL; //親のtable size
-    unique_ptr<ZDD_base> zdd_check;
-    if(vision == 0) {
-        zdd_check = make_unique<ZDD_White>(iteration);
-    } else {
-        zdd_check = make_unique<ZDD_Black>(iteration);
-    }
-    Table check_table(16 - iteration, argv[3], argv[4], parent_table_size64, placement_count[vision][16 - iteration]);   //[2]:読み込みファイル, [4]:書き込みファイル 親のtable
+    int vision = atoi(argv[2]); // 0: white's perspective, 1: black's perspective
+    unsigned long long int parent_table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL; // parent table size
+    unique_ptr<ZDD> zdd_check = make_unique<ZDD>(vision, iteration);
+    Table check_table(16 - iteration, argv[3], argv[4], parent_table_size64, placement_count[vision][16 - iteration]);   // [2]: input file, [4]: output file; parent table
     Posi p;
 
 //     constexpr LocInfo tbl_objid2locinfo[8] = {
@@ -131,5 +126,5 @@ int main(int argc, char *argv[]) {
 //  ./debug.out 10 0 white_table_10.bin db > deb.txt 2>&1 &
 //  ./debug.out 2 0 white_table_2.bin db > deb.txt 2>&1 &
 
-//id = 700836752 元の配置のid
-//id = 1412134976 入れ替えた方のid
+//id = 700836752: id of the original configuration
+//id = 1412134976: id of the swapped configuration

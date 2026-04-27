@@ -2,6 +2,7 @@
 #include <chrono>
 #include <random>
 #include "table.hpp"
+#include "node.hpp"
 #include "zdd_yonoku.hpp"
 #include "posi_yonoku.hpp"
 
@@ -51,28 +52,17 @@ int main(int argc, char *argv[]) {
     unsigned long long int parent_table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL; //親のtable size
     unsigned long long int child_table_size64 = (placement_count[vision][15 - iteration] + 15ULL) / 16ULL; //子のtable size
     unsigned long long int opp_child_table_size64 = (placement_count[1 - vision][15 - iteration] + 15ULL) / 16ULL; //相手視点の子のtable size
-    unique_ptr<ZDD_base> zdd_parent;
-    unique_ptr<ZDD_base> zdd_child;
-    unique_ptr<ZDD_base> zdd_child_opp;
-    if(vision == 0) {
-        zdd_parent = make_unique<ZDD_White>(iteration);
-        if(iteration == 15) {
-            zdd_child = make_unique<ZDD_White>(iteration);
-            zdd_child_opp = make_unique<ZDD_Black>(iteration);
-        } else {
-            zdd_child = make_unique<ZDD_White>(iteration + 1);
-            zdd_child_opp = make_unique<ZDD_Black>(iteration + 1);
-        }
+    unique_ptr<ZDD> zdd_parent = make_unique<ZDD>(vision, iteration);
+    unique_ptr<ZDD> zdd_child;
+    unique_ptr<ZDD> zdd_child_opp;
+    if(iteration == 15) {
+      zdd_child = make_unique<ZDD>(vision, iteration);
+      zdd_child_opp = make_unique<ZDD>(1 - vision, iteration);
     } else {
-        zdd_parent = make_unique<ZDD_Black>(iteration);
-        if(iteration == 15) {
-            zdd_child = make_unique<ZDD_Black>(iteration);
-            zdd_child_opp = make_unique<ZDD_White>(iteration);
-        } else {
-            zdd_child = make_unique<ZDD_Black>(iteration + 1);
-            zdd_child_opp = make_unique<ZDD_White>(iteration + 1);
-        }
+      zdd_child = make_unique<ZDD>(vision, iteration + 1);
+      zdd_child_opp = make_unique<ZDD>(1 - vision, iteration + 1);
     }
+    
     Table parent_table(16 - iteration, read_filename_c_str, argv[5], parent_table_size64, placement_count[vision][16 - iteration]);   // 親のtable
     Table child_table(15 - iteration, read_filename_c_str_child, argv[6], child_table_size64, placement_count[vision][15 - iteration]); //子のtalbe
     Table opp_child_table(15 - iteration, read_filename_c_str_child_opp, argv[7], opp_child_table_size64, placement_count[1 - vision][15 - iteration]); //相手側の子のtable
@@ -152,9 +142,10 @@ int main(int argc, char *argv[]) {
             al_win_num++;
         } else if(nchild == -2) {
             al_lose_num++;
-        } else if(nchild == -3) {
-            al_unknown_num++;
-        }
+        } else {
+	  assert(nchild > 0);
+	}
+	
         int game_val = 0;
         int already_decided = 0;
         if(nchild > 0) { //前半のループでは必勝、負無しを判定

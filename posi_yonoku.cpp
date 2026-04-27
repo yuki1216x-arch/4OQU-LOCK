@@ -52,7 +52,7 @@ Posi::Posi() noexcept {
 
 
 
-Posi::Posi(unsigned long long int x, const ZDD_base& zdd) noexcept {
+Posi::Posi(unsigned long long int x, const ZDD& zdd) noexcept {
     unsigned char array_objid[32];
     zdd.compute_array(x, array_objid);
     for(int loc = 0; loc < 46; loc++){
@@ -68,7 +68,7 @@ Posi::Posi(unsigned long long int x, const ZDD_base& zdd) noexcept {
     }
 }
 
-void Posi::make_posi(unsigned long long int x, const ZDD_base& zdd) noexcept {
+void Posi::make_posi(unsigned long long int x, const ZDD& zdd) noexcept {
     unsigned char array_objid[32];
     zdd.compute_array(x, array_objid);
     //cout << "aaaa" << endl;
@@ -167,7 +167,7 @@ int Posi::compute_actions(Action actions[1000], int vision, int turn) noexcept {
     assert(vision >= 0 && vision <= 1);
     assert(turn >= 0 && turn <= 15);
 
-    int bc = BoardCheck2(vision, turn); //終端チェック
+    int bc = TerminalTest(vision, turn); //終端チェック
 
     if(bc == 2) {
         //cout << "-1" << endl;
@@ -521,7 +521,7 @@ int Posi::getunknowninfo(unsigned char zdd_code[12][46], int vision, int turn) n
     return retiter;
 }
 
-unsigned long long int Posi::getzddnum(const ZDD_base& zdd) const noexcept {
+unsigned long long int Posi::getzddnum(const ZDD& zdd) const noexcept {
     unsigned char before_array[32] = {};
         int before_array_iter = 0;
         for(int j = 0; j < 46; j++) {
@@ -666,7 +666,7 @@ int Posi::BoardCheck(int a, int b) noexcept {
     // else return false;
 }
 
-int Posi::BoardCheck2(int vision, int turn) noexcept { //初期判定
+int Posi::TerminalTest(int vision, int turn) noexcept { //初期判定
     int i, j;
     int result1, result2;
     int flg1 = 0;
@@ -695,31 +695,25 @@ int Posi::BoardCheck2(int vision, int turn) noexcept { //初期判定
     }
     if(vision == 0) {
         if(flg1 == 1 && flg2 == 1) {
-            result2 = 1; //unknown
+	  if(turn % 2 == 0) result2 = 2;
+	  else result2 = 3;
         } else if(flg1 == 1 && flg2 == 0) {
-            result2 = 2; //白プレイヤ勝ち
+	  result2 = 2; //白プレイヤ勝ち
         } else if(flg1 == 0 && flg2 == 1) {
-            result2 = 3; //白プレイヤ負け
+	  result2 = 3; //白プレイヤ負け
         } else {
-            if(turn == 15) {
-                return 10;
-            } else {
-                return 0; //終わってない
-            }
+	  return 0; //終わってない
         }
     } else {
         if(flg1 == 1 && flg2 == 1) {
-            result2 = 1; //unknown
+	  if(turn % 2 == 0) result2 = 3;
+          else result2 = 2;
         } else if(flg1 == 1 && flg2 == 0) {
-            result2 = 3; //黒プレイヤ負け
+	  result2 = 3; //黒プレイヤ負け
         } else if(flg1 == 0 && flg2 == 1) {
-            result2 = 2; //黒プレイヤ勝ち
+	  result2 = 2; //黒プレイヤ勝ち
         } else {
-            if(turn == 15) {
-                result2 = 10;
-            } else {
-                result2 = 0; //終わってない
-            }
+	  result2 = 0; //終わってない
         }
     }
 
@@ -815,112 +809,131 @@ bool Posi::check_ok() noexcept {
 }
 
 int Posi::make_action(const Action & action, int vision, int turn) noexcept {
-    int fourres = -100;
-    int fourafter = -100;
-    int blackflag = 0;
-    int whiteflag = 0;
-    char cl = 'a';
-
-    for(int k = 0; k < 16; k++) already[k] = 0;    
-
-    if(action.po != 100 && action.loc1 != 100) {
-        assert(action.loc1 >= 0 && action.loc1 <= 45);
-        assert(action.po >= 0 && action.po <= 45);
-        m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height] = m_locs_info[action.po].cube[m_locs_info[action.po].height - 1];
-        m_locs_info[action.loc1].height++;
-        m_locs_info[action.po].cube[m_locs_info[action.po].height - 1] = '.';
-        m_locs_info[action.po].height--;
-        if(turn > 0) {
-            fourres = FourCheck((action.loc1 - 14) % 5, (action.loc1 - 14) / 5, m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1]);
-            if(fourres >= 4) {
-                if(m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1] == 'W') {
-                    whiteflag = 1;
-                } else if(m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1] == 'B') {
-                    blackflag = 1;
-                }
-                assert(action.loc1 >= 0 && action.loc1 <= 45);
-                cl = m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1];
-            }
-            for(int k = 0; k < 16; k++) already[k] = 0;
-        }
+  int fourres = -100;
+  int fourafter = -100;
+  int blackflag = 0;
+  int whiteflag = 0;
+  char cl = 'a';
+  
+  for(int k = 0; k < 16; k++) already[k] = 0;    
+  
+  if(action.po != 100 && action.loc1 != 100) {
+    assert(action.loc1 >= 0 && action.loc1 <= 45);
+    assert(action.po >= 0 && action.po <= 45);
+    m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height] = m_locs_info[action.po].cube[m_locs_info[action.po].height - 1];
+    m_locs_info[action.loc1].height++;
+    m_locs_info[action.po].cube[m_locs_info[action.po].height - 1] = '.';
+    m_locs_info[action.po].height--;
+    if(turn > 0) {
+      fourres = FourCheck((action.loc1 - 14) % 5, (action.loc1 - 14) / 5, m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1]);
+      if(fourres >= 4) {
+	if(m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1] == 'W') {
+	  whiteflag = 1;
+	} else if(m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1] == 'B') {
+	  blackflag = 1;
+	}
+	assert(action.loc1 >= 0 && action.loc1 <= 45);
+	cl = m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1];
+      }
+      for(int k = 0; k < 16; k++) already[k] = 0;
     }
-
-    
-
-    if(action.loc2 != 100 && action.loc3 != 100) {
-        assert(action.loc3 >= 0 && action.loc3 <= 45);
-        assert(action.loc2 >= 0 && action.loc2 <= 45);
-        m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height] = m_locs_info[action.loc2].cube[m_locs_info[action.loc2].height - 1];
-        m_locs_info[action.loc3].height++;
-        m_locs_info[action.loc2].cube[m_locs_info[action.loc2].height - 1] = '.';
-        m_locs_info[action.loc2].height--;
-        if(turn > 0) {
-            if(whiteflag == 0 && blackflag == 0) {
-                fourafter = FourCheck((action.loc3 - 14) % 5, (action.loc3 - 14) / 5, m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1]);
-                if(fourafter >= 4) {
-                    assert(action.loc3 >= 0 && action.loc3 <= 45);
-                    if(m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1] == 'W') {
-                        whiteflag = 1;
-                    } else if(m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1] == 'B') {
-                        blackflag = 1;
-                    }
-                }
-            } else { //1回目の操作でどちらかの色がそろっていた場合
-                assert(action.loc1 >= 0 && action.loc1 <= 45);
-                fourafter = FourCheck((action.loc1 - 14) % 5, (action.loc1 - 14) / 5, m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1]);
-                if(fourafter >= 4 && cl != m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1]) {
-                    if(cl == 'W') {
-                        whiteflag = 0;
-                        blackflag = 1;
-                    } else {
-                        whiteflag = 1;
-                        blackflag = 0;
-                    }
-                }
-                if(fourafter < 4) {
-                    whiteflag = 0;
-                    blackflag = 0;
-                    for(int k = 0; k < 16; k++) already[k] = 0;
-                    assert(action.loc3 >= 0 && action.loc3 <= 45);
-                    fourafter = FourCheck((action.loc3 - 14) % 5, (action.loc3 - 14) / 5, m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1]);
-                    if(fourafter >= 4) {
-                        assert(action.loc3 >= 0 && action.loc3 <= 45);
-                        if(m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1] == 'W') {
-                            whiteflag = 1;
-                        } else if(m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1] == 'B') {
-                            blackflag = 1;
-                        }
-                    }
-                }
-            }
-        }
+  }
+  
+  
+  
+  if(action.loc2 != 100 && action.loc3 != 100) {
+    assert(action.loc3 >= 0 && action.loc3 <= 45);
+    assert(action.loc2 >= 0 && action.loc2 <= 45);
+    m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height] = m_locs_info[action.loc2].cube[m_locs_info[action.loc2].height - 1];
+    m_locs_info[action.loc3].height++;
+    m_locs_info[action.loc2].cube[m_locs_info[action.loc2].height - 1] = '.';
+    m_locs_info[action.loc2].height--;
+    if(turn > 0) {
+      if(whiteflag == 0 && blackflag == 0) {
+	fourafter = FourCheck((action.loc3 - 14) % 5, (action.loc3 - 14) / 5, m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1]);
+	if(fourafter >= 4) {
+	  assert(action.loc3 >= 0 && action.loc3 <= 45);
+	  if(m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1] == 'W') {
+	    whiteflag = 1;
+	  } else if(m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1] == 'B') {
+	    blackflag = 1;
+	  }
+	}
+      } else { //1回目の操作でどちらかの色がそろっていた場合
+	assert(action.loc1 >= 0 && action.loc1 <= 45);
+	fourafter = FourCheck((action.loc1 - 14) % 5, (action.loc1 - 14) / 5, m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1]);
+	if(fourafter >= 4 && cl == m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1]) {
+	  int fourafter2 = FourCheck((action.loc3 - 14) % 5, (action.loc3 - 14) / 5, m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1]);
+	  if(fourafter2 >= 4 && cl != m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1]) {
+	    whiteflag = 1;
+	    blackflag = 1;
+	  }
+	}
+	if(fourafter >= 4 && cl != m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1]) {
+	  //int fourafter2 = FourCheck((action.loc3 - 14) % 5, (action.loc3 - 14) / 5, m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1]);
+	  //if(fourafter2 < 4 || cl != m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1])  cout << "loc1 = " << fourafter << cl << ", loc2 = " << fourafter2 << m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1] << m_locs_info[action.loc1].cube[m_locs_info[action.loc1].height - 1] << ", " << action.loc1 << action.loc2 << action.loc3 << endl;
+	  //assert(fourafter2 >= 4);
+	  //assert(cl == m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1]);
+	  //if(action.loc1 != action.loc3) std::cout << action.loc1 << action.loc2 << action.loc3 << endl;
+	  assert(action.loc1 == action.loc3);
+	  if(cl == 'W') {
+	    whiteflag = 0;
+	    blackflag = 1;
+	  } else {
+	    whiteflag = 1;
+	    blackflag = 0;
+	  }
+	}
+	if(fourafter < 4) {
+	  whiteflag = 0;
+	  blackflag = 0;
+	  for(int k = 0; k < 16; k++) already[k] = 0;
+	  assert(action.loc3 >= 0 && action.loc3 <= 45);
+	  fourafter = FourCheck((action.loc3 - 14) % 5, (action.loc3 - 14) / 5, m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1]);
+	  if(fourafter >= 4) {
+	    assert(action.loc3 >= 0 && action.loc3 <= 45);
+	    if(m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1] == 'W') {
+	      whiteflag = 1;
+	    } else if(m_locs_info[action.loc3].cube[m_locs_info[action.loc3].height - 1] == 'B') {
+	      blackflag = 1;
+	    }
+	  }
+	}
+      }
     }
-
-    if(vision == 0) {
-        if(whiteflag == 1 && blackflag == 0) {
-            return 2; //白プレイヤ勝ち
-        } else if(whiteflag == 0 && blackflag == 1) {
-            return 3; //白プレイヤ負け
-        } else {
-            if(turn == 15) {
-                return 10;
-            } else {
-                return 0; //終わってない
-            }
-        }
+  }
+  
+  if(vision == 0) {
+    if(whiteflag == 1 && blackflag == 1) {
+      if(turn % 2 == 0) return 3;
+      else return 2;
+    } else if(whiteflag == 1 && blackflag == 0) {
+      return 2; //白プレイヤ勝ち
+    } else if(whiteflag == 0 && blackflag == 1) {
+      return 3; //白プレイヤ負け
     } else {
-        if(whiteflag == 1 && blackflag == 0) {
-            return 3; //黒プレイヤ負け
-        } else if(whiteflag == 0 && blackflag == 1) {
-            return 2; //黒プレイヤ勝ち
-        } else {
-            if(turn == 15) {
-                return 10;
-            } else {
-                return 0; //終わってない
-            }
-        }
+      if(turn == 15) {
+	return 10;
+      } else {
+	return 0; //終わってない
+      }
     }
+  } else {
+    if(whiteflag == 1 && blackflag == 1) {
+      if(turn % 2 == 0) return 2;
+      else return 3;
+    } else if(whiteflag == 1 && blackflag == 0) {
+      return 3; //黒プレイヤ負け
+    } else if(whiteflag == 0 && blackflag == 1) {
+      return 2; //黒プレイヤ勝ち
+    } else {
+      if(turn == 15) {
+	return 10;
+      } else {
+	return 0; //終わってない
+      }
+    }
+  }
 }
 
 // void Posi::unmake_action(const Action & action) noexcept {

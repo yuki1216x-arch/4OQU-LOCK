@@ -25,41 +25,41 @@ constexpr unsigned long long int placement_count[2][17] {
 //---.exe iter read_file write_file
 int main(int argc, char *argv[]) {
     int iteration = atoi(argv[1]);
-    int vision = atoi(argv[2]); //0なら白視点, 1なら黒視点
-    unsigned long long int parent_table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL; //親のtable size
+    int vision = atoi(argv[2]); // 0: white's perspective, 1: black's perspective
+    unsigned long long int parent_table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL; // parent table size
     unique_ptr<ZDD_base> zdd_check;
     if(vision == 0) {
         zdd_check = make_unique<ZDD_White>(iteration);
     } else {
         zdd_check = make_unique<ZDD_Black>(iteration);
     }
-    Table check_table(16 - iteration, argv[3], argv[4], parent_table_size64, placement_count[vision][16 - iteration]);   //[2]:読み込みファイル, [4]:書き込みファイル 親のtable
+    Table check_table(16 - iteration, argv[3], argv[4], parent_table_size64, placement_count[vision][16 - iteration]);   // [2]: input file, [4]: output file; parent table
     Posi p;
 
-    //簡易検証用
-    // 乱数を格納する tbl_dbg 配列
+    // for quick validation
+    // tbl_dbg array storing random values
     // unsigned long long int tbl_dbg[50];
 
-    // // 乱数生成器のシード設定
+    // // seed the random number generator
     // mt19937_64 rng(high_resolution_clock::now().time_since_epoch().count());
 
-    // // placement_count[i][j] の値を取得
+    // // retrieve the value of placement_count[i][j]
     // unsigned long long int max_val = placement_count[vision][16 - iteration];
 
-    // // 乱数生成範囲の設定 (0 から max_val まで)
+    // // set the random range (0 to max_val)
     // uniform_int_distribution<unsigned long long int> dist(0, max_val);
 
-    // cout << "placement_count[" << vision << "][" << 16 - iteration << "] (" << max_val << "以下) から16個の乱数を生成し、tbl_dbg に格納します。" << endl;
+    // cout << "Generate 16 random values from placement_count[" << vision << "][" << 16 - iteration << "] (<=" << max_val << ") and store them in tbl_dbg" << endl;
 
-    // // 乱数を生成して tbl_dbg に格納
+    // // generate random values and store them in tbl_dbg
     // for (int k = 0; k < 16; ++k) {
     //     //do {
     //         tbl_dbg[k] = dist(rng);
     //     //} while(check_table.get(tbl_dbg[k]) != 3);
     // }
 
-    // // 生成された乱数を確認
-    // cout << "tbl_dbg に格納された値:";
+    // // check the generated random values
+    // cout << "Values stored in tbl_dbg: ";
     // for (int k = 0; k < 16; ++k) {
     //     cout << " " << tbl_dbg[k];
     // }
