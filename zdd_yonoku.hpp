@@ -1,7 +1,9 @@
 #ifndef INCLUDE_ZDD_YONOKU_H
 #define INCLUDE_ZDD_YONOKU_H
 
+#include <cstddef>
 #include <deque>
+#include <vector>
 #include <cassert>
 #include <algorithm>
 #include <iostream>
@@ -16,6 +18,9 @@ using std::cerr;
 using std::terminate;
 using std::unique_ptr;
 using std::make_unique;
+using std::vector;
+
+
 
 class ZDD { //使いまわせるやつをこの中に入れる
 private:
@@ -38,10 +43,13 @@ public:
     cout << "root->lengthmin = " << m_N[0][0]->get_lengthmin() << endl;
     cout << "root->lengthave = " << (double)m_N[0][0]->get_lengthsum() / (double)m_N[0][0]->get_num() << endl;
   }
-  void compute_array(unsigned long long int x, unsigned char array_objid[32]) const noexcept {
+
+  template <typename T, std::size_t N> // 配列用
+  void compute_array(unsigned long long int x, T (&array_objid)[N]) const noexcept {
+    assert(N == 32);
     const Node_base *r = m_N[0][0].get();
-    for(int i = 0; i < 32; i++) {
-      array_objid[i] = 7;
+    for(std::size_t i = 0; i < N; i++) {
+      array_objid[i] = static_cast<T>(7);
     }
     while (true) {
       assert(r);
@@ -52,19 +60,63 @@ public:
       if(r->m_left->get_num() <= x) {
 	x -= r->m_left->get_num();
 	assert(r->get_locid() >= 0 && r->get_locid() <= 31);
-	array_objid[r->get_locid()] = r->get_loc_stateid();
+	array_objid[static_cast<std::size_t>(r->get_locid())] = static_cast<T>(r->get_loc_stateid());
 	r = r->m_right;
       } else {
 	r = r->m_left;
       }
     }
   }
-  unsigned long long int compute_id(unsigned char array_objid[32]) const noexcept {
+
+  template <typename T> // vector用
+  void compute_array(unsigned long long int x, std::vector<T>& array_objid) const noexcept {
+    assert(array_objid.size() == 32);
+    const Node_base *r = m_N[0][0].get();
+    for(std::size_t i = 0; i < array_objid.size(); i++) {
+      array_objid[i] = static_cast<T>(7);
+    }
+    while (true) {
+      assert(r);
+      if(r->get_f() == 30) break; // もし１葉なら
+      assert(r->get_f() != 20);
+      assert(r->get_f() == 0 || r->get_f() == 1);
+      
+      if(r->m_left->get_num() <= x) {
+	x -= r->m_left->get_num();
+	assert(r->get_locid() >= 0 && r->get_locid() <= 31);
+	array_objid[static_cast<std::size_t>(r->get_locid())] = static_cast<T>(r->get_loc_stateid());
+	r = r->m_right;
+      } else {
+	r = r->m_left;
+      }
+    }
+  }
+  
+  template <typename T, std::size_t N> // 配列用
+  unsigned long long int compute_id(T (&array_objid)[N]) const noexcept {
+    assert(N == 32);
     const Node_base* r = m_N[0][0].get();
     unsigned long long int index = 0;
     while(r->get_f() < 20){
-      assert(r->get_locid() >= 0 && r->get_locid() <= 31);
-      if(array_objid[r->get_locid()] == r->get_loc_stateid()) {
+      assert(r->get_locid() >= 0 && r->get_locid() < static_cast<int>(N));
+      if(array_objid[static_cast<std::size_t>(r->get_locid())] == static_cast<T>(r->get_loc_stateid())) {
+	index += r->m_left->get_num();
+	r = r->m_right;
+      } else {
+	r = r->m_left;
+      }
+    }
+    return index;
+  }
+
+  template <typename T> // vector用
+  unsigned long long int compute_id(std::vector<T>& array_objid) const noexcept {
+    assert(array_objid.size() == 32);
+    const Node_base* r = m_N[0][0].get();
+    unsigned long long int index = 0;
+    while(r->get_f() < 20){
+      assert(r->get_locid() >= 0 && r->get_locid() < static_cast<int>(array_objid.size()));
+      if(array_objid[static_cast<std::size_t>(r->get_locid())] == static_cast<T>(r->get_loc_stateid())) {
 	index += r->m_left->get_num();
 	r = r->m_right;
       } else {

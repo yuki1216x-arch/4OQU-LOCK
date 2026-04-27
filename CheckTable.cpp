@@ -27,12 +27,7 @@ int main(int argc, char *argv[]) {
     int iteration = atoi(argv[1]);
     int vision = atoi(argv[2]); // 0: white's perspective, 1: black's perspective
     unsigned long long int parent_table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL; // parent table size
-    unique_ptr<ZDD_base> zdd_check;
-    if(vision == 0) {
-        zdd_check = make_unique<ZDD_White>(iteration);
-    } else {
-        zdd_check = make_unique<ZDD_Black>(iteration);
-    }
+    unique_ptr<ZDD> zdd_check = make_unique<ZDD>(vision, iteration);
     Table check_table(16 - iteration, argv[3], argv[4], parent_table_size64, placement_count[vision][16 - iteration]);   // [2]: input file, [4]: output file; parent table
     Posi p;
 

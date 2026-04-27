@@ -30,7 +30,7 @@ constexpr unsigned long long int placement_count[2][17] {
 void search(Node_base& cur, vector<char>& array_objid, const ZDD& zdd, int depth, unsigned long long int& leaf_id, int nmove, int vision) {
   if(depth == MAX_DEPTH) {
     assert(array_objid.size() == 32);
-    unsigned char array_objid_zdd[32], array_objid_copy[32];
+    unsigned char array_objid_zdd[32];
 
     zdd.compute_array(leaf_id, array_objid_zdd);
     
@@ -40,10 +40,9 @@ void search(Node_base& cur, vector<char>& array_objid, const ZDD& zdd, int depth
 	std::cerr << "dfp = " << +array_objid[i] << ", zdd = " << +array_objid_zdd[i] << endl;
 	std::terminate();
       }
-      array_objid_copy[i] = array_objid[i];
     }
 
-    unsigned long long int array_id = zdd.compute_id(array_objid_copy);
+    unsigned long long int array_id = zdd.compute_id(array_objid);
     if(leaf_id != array_id ) {
       std::cerr << "id error, id = " << leaf_id << endl;
       std::terminate();

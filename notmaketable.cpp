@@ -38,27 +38,16 @@ int main(int argc, char *argv[]) {
     int vision = atoi(argv[2]); //0なら白視点, 1なら黒視点
     unsigned long long int child_table_size64 = (placement_count[vision][15 - iteration] + 15ULL) / 16ULL; //子のtable size
     unsigned long long int opp_child_table_size64 = (placement_count[1 - vision][15 - iteration] + 15ULL) / 16ULL; //相手視点の子のtable size
-    unique_ptr<ZDD_base> zdd_parent;
-    unique_ptr<ZDD_base> zdd_child;
-    unique_ptr<ZDD_base> zdd_child_opp;
-    if(vision == 0) {
-        zdd_parent = make_unique<ZDD_White>(iteration);
-        if(iteration == 15) {
-            zdd_child = make_unique<ZDD_White>(iteration);
-            zdd_child_opp = make_unique<ZDD_Black>(iteration);
-        } else {
-            zdd_child = make_unique<ZDD_White>(iteration + 1);
-            zdd_child_opp = make_unique<ZDD_Black>(iteration + 1);
-        }
+    unique_ptr<ZDD> zdd_parent = make_unique<ZDD>(vision, iteration);
+    unique_ptr<ZDD> zdd_child;
+    unique_ptr<ZDD> zdd_child_opp;
+  
+    if(iteration == 15) {
+      zdd_child = make_unique<ZDD>(vision, iteration);
+      zdd_child_opp = make_unique<ZDD>(1 - vision, iteration);
     } else {
-        zdd_parent = make_unique<ZDD_Black>(iteration);
-        if(iteration == 15) {
-            zdd_child = make_unique<ZDD_Black>(iteration);
-            zdd_child_opp = make_unique<ZDD_White>(iteration);
-        } else {
-            zdd_child = make_unique<ZDD_Black>(iteration + 1);
-            zdd_child_opp = make_unique<ZDD_White>(iteration + 1);
-        }
+      zdd_child = make_unique<ZDD>(vision, iteration + 1);
+      zdd_child_opp = make_unique<ZDD>(1 - vision, iteration + 1);
     }
     Table child_table(15 - iteration, argv[3], argv[5], child_table_size64, placement_count[vision][15 - iteration]); //子のtalbe
     Table opp_child_table(15 - iteration, argv[4], argv[6], opp_child_table_size64, placement_count[1 - vision][15 - iteration]); //相手側の子のtable
