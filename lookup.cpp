@@ -111,7 +111,7 @@ unsigned long long int getzddnum(const ZDD_base& zdd, string fen_str) noexcept {
     }
   }
   assert(array_objid_iter == 32);
-  return zdd.compute_id(array_objid);
+  return zdd.compute_id(array_objid, 32);
 }
 
 //---.exe iter read_file write_file

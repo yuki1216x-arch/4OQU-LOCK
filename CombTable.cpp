@@ -1,10 +1,12 @@
 #include <memory>
+#include <iomanip>
 #include "table.hpp"
 
 using std::string;
 using std::unique_ptr;
 using std::make_unique;
 using std::to_string;
+
 
 constexpr unsigned long long int placement_count[2][17] {
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
@@ -24,6 +26,8 @@ int main(int argc, char* argv[]) {
     unsigned long long int notlose = 0;
     unsigned long long int notwin = 0;
     unsigned long long int unknown = 0;
+    unsigned long long int win_turn[17] = {};
+    unsigned long long int lose_turn[17] = {};
     int iteration = atoi(argv[1]);
     int vision = atoi(argv[2]);
     int division = atoi(argv[3]);
@@ -31,13 +35,18 @@ int main(int argc, char* argv[]) {
     string read_filename_str = base_filename + "_" + to_string(iteration) + ".bin";
     const char* read_filename_c_str = read_filename_str.c_str();
     unsigned long long int table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL;
-    Table new_table(16 - iteration, read_filename_c_str, argv[5 + division], table_size64, placement_count[vision][16 - iteration]);
+    unsigned long long int game_length_table_size64;
+    if(iteration >= 13) game_length_table_size64 = (placement_count[vision][16 - iteration] + 31ULL) / 32ULL;
+    else if(iteration >= 1) game_length_table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL;
+    else game_length_table_size64 = (placement_count[vision][16 - iteration] + 7ULL) / 8ULL;
+    Table new_table(16 - iteration, read_filename_c_str, argv[5 + division], table_size64, game_length_table_size64, placement_count[vision][16 - iteration]);
     unique_ptr<Table> old_table[division];
     for(int i = 0; i < division; i++) {
-        old_table[i] = make_unique<Table>(16 - iteration, argv[5 + i], argv[6 + division + i], table_size64, placement_count[vision][16 - iteration]);
+      old_table[i] = make_unique<Table>(16 - iteration, argv[5 + i], argv[6 + division + i], table_size64, game_length_table_size64, placement_count[vision][16 - iteration]);
     }
     for(unsigned long long int i = 0; i < placement_count[vision][16 - iteration]; i++) {
         int val = old_table[i % division]->get(i);
+	int game_length = old_table[i % division]->get_game_length(i);
         // if(val != 0 && old_table[1 - i % division]->get(i) != 0) {
         //     cout << "division error1" << endl;
         //     terminate();
@@ -45,9 +54,13 @@ int main(int argc, char* argv[]) {
         switch(val) {
             case 1:
                 win++;
+		assert(game_length >= 0 && game_length <= 16 - iteration);
+		win_turn[game_length]++;
                 break;
             case 2:
                 lose++;
+		assert(game_length >= 0 && game_length <= 16 - iteration);
+		lose_turn[game_length]++;
                 break;
             case 3:
                 draw++;
@@ -73,7 +86,7 @@ int main(int argc, char* argv[]) {
     {   
         OutTable out_table(16 - iteration, read_filename_c_str, placement_count[vision][16 - iteration]);
         for (unsigned long long int i = 0; i < placement_count[vision][16 - iteration]; i++) { //haiti
-            out_table.write(new_table.get(i));
+	  out_table.write(new_table.get(i), new_table.get_game_length(i));
         }
         out_table.flush();
     }
@@ -85,6 +98,30 @@ int main(int argc, char* argv[]) {
     cout << "nnotwin  =  " << notwin << endl;
     cout << "nunknown  =  " << unknown << endl;
     cout << "total  =  " << win + lose + draw + notlose + notwin + unknown << endl;
+
+    cout << endl;
+    cout << "win positions by shortest win length:" << endl;
+    cout << "0 moves: " << std::setw(12) << win_turn[0] << " positions" << "          9 moves: " << std::setw(12) << win_turn[9] << " positions" << endl;
+    cout << "1 move : " << std::setw(12) << win_turn[1] << " positions" << "         10 moves: " << std::setw(12) << win_turn[10] << " positions" << endl;
+    cout << "2 moves: " << std::setw(12) << win_turn[2] << " positions" << "         11 moves: " << std::setw(12) << win_turn[11] << " positions" << endl;
+    cout << "3 moves: " << std::setw(12) << win_turn[3] << " positions" << "         12 moves: " << std::setw(12) << win_turn[12] << " positions" << endl;
+    cout << "4 moves: " << std::setw(12) << win_turn[4] << " positions" << "         13 moves: " << std::setw(12) << win_turn[13] << " positions" << endl;
+    cout << "5 moves: " << std::setw(12) << win_turn[5] << " positions" << "         14 moves: " << std::setw(12) << win_turn[14] << " positions" << endl;
+    cout << "6 moves: " << std::setw(12) << win_turn[6] << " positions" << "         15 moves: " << std::setw(12) << win_turn[15] << " positions" << endl;
+    cout << "7 moves: " << std::setw(12) << win_turn[7] << " positions" << "         16 moves: " << std::setw(12) << win_turn[16] << " positions" << endl;
+    cout << "8 moves: " << std::setw(12) << win_turn[8] << " positions" << endl;
+
+    cout << endl;
+    cout << "lose positions by longest lose length:" << endl;
+    cout << "0 moves: " << std::setw(12) << lose_turn[0] << " positions" << "          9 moves: " << std::setw(12) << lose_turn[9] << " positions" << endl;
+    cout << "1 move : " << std::setw(12) << lose_turn[1] << " positions" << "         10 moves: " << std::setw(12) << lose_turn[10] << " positions" << endl;
+    cout << "2 moves: " << std::setw(12) << lose_turn[2] << " positions" << "         11 moves: " << std::setw(12) << lose_turn[11] << " positions" << endl;
+    cout << "3 moves: " << std::setw(12) << lose_turn[3] << " positions" << "         12 moves: " << std::setw(12) << lose_turn[12] << " positions" << endl;
+    cout << "4 moves: " << std::setw(12) << lose_turn[4] << " positions" << "         13 moves: " << std::setw(12) << lose_turn[13] << " positions" << endl;
+    cout << "5 moves: " << std::setw(12) << lose_turn[5] << " positions" << "         14 moves: " << std::setw(12) << lose_turn[14] << " positions" << endl;
+    cout << "6 moves: " << std::setw(12) << lose_turn[6] << " positions" << "         15 moves: " << std::setw(12) << lose_turn[15] << " positions" << endl;
+    cout << "7 moves: " << std::setw(12) << lose_turn[7] << " positions" << "         16 moves: " << std::setw(12) << lose_turn[16] << " positions" << endl;
+    cout << "8 moves: " << std::setw(12) << lose_turn[8] << " positions" << endl;
 
     return 0;
 }

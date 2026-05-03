@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
     array_objid[30] = 0;
     array_objid[31] = 1;
 
-    unsigned long long int i = zdd_check->compute_id(array_objid);
+    unsigned long long int i = zdd_check->compute_id(array_objid, 32);
     p.make_posi(i, *zdd_check);
     int gameval = check_table.get(i);
 

@@ -27,12 +27,12 @@ constexpr unsigned long long int placement_count[2][17] {
       666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL}
 };
 
-void search(Node_base& cur, vector<char>& array_objid, const ZDD& zdd, int depth, unsigned long long int& leaf_id, int nmove, int vision) {
+void search(Node_base& cur, vector<unsigned char>& array_objid, const ZDD& zdd, int depth, unsigned long long int& leaf_id, int nmove, int vision) {
   if(depth == MAX_DEPTH) {
     assert(array_objid.size() == 32);
     unsigned char array_objid_zdd[32];
 
-    zdd.compute_array(leaf_id, array_objid_zdd);
+    zdd.compute_array(leaf_id, array_objid_zdd, 32);
     
     for(size_t i = 0; i < array_objid.size(); i++) {
       if(array_objid[i] != array_objid_zdd[i]) {
@@ -42,7 +42,7 @@ void search(Node_base& cur, vector<char>& array_objid, const ZDD& zdd, int depth
       }
     }
 
-    unsigned long long int array_id = zdd.compute_id(array_objid);
+    unsigned long long int array_id = zdd.compute_id(array_objid.data(), array_objid.size());
     if(leaf_id != array_id ) {
       std::cerr << "id error, id = " << leaf_id << endl;
       std::terminate();
@@ -235,7 +235,7 @@ int main(int argc, char *argv[]) {
     if(vision == 0) root = make_unique<Node_White>();
     else root = make_unique<Node_Black>();
   
-    vector<char> array_objid;
+    vector<unsigned char> array_objid;
   
     search(*root, array_objid, *zdd_parent, 0, id, iteration, vision);
   }
