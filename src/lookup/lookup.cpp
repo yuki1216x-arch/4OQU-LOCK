@@ -37,14 +37,14 @@ std::vector<string> split(const string text, const char delimiter='/') {
   };*/
 
 constexpr unsigned long long int placement_count[2][17] {
-  {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
-      19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-      144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
-      666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
-	19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-	144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
-	666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL}
+    19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
+    144799200ULL, 61850880ULL, 17357760ULL, 4264960ULL,
+    666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
+    {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
+    19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
+    144799200ULL, 46388160ULL, 17357760ULL, 2932160ULL,
+    666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
 };
 
 constexpr LocInfo tbl_objid2locinfo[7] = {
@@ -66,7 +66,7 @@ constexpr LocInfo tbl_objid2locinfo2[4] = {
 
 const string base[2] = {"white_table", "black_table"};
 
-unsigned long long int getzddnum(const ZDD_base& zdd, string fen_str) noexcept {
+unsigned long long int getzddnum(const ZDD& zdd, string fen_str) noexcept {
   unsigned char array_objid[32] = {};
   std::vector<string> cols = split(fen_str);
   int array_objid_iter = 0;
@@ -120,7 +120,7 @@ int main(int argc, char *argv[]) {
   int vision = atoi(argv[2]); // 0: white's perspective, 1: black's perspective
   // unsigned long long int parent_table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL; // parent table size
   string base_filename = base[vision];
-  string read_filename_str = base_filename + '_' + to_string(iteration) + ".bin";
+  string read_filename_str = "data/db/" + base_filename + '_' + to_string(iteration) + ".bin";
   
   unique_ptr<ZDD> zdd_check = make_unique<ZDD>(vision, iteration);
   Posi p;

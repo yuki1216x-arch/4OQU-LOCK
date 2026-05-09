@@ -11,11 +11,11 @@ using std::to_string;
 constexpr unsigned long long int placement_count[2][17] {
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-    144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
+    144799200ULL, 61850880ULL, 17357760ULL, 4264960ULL,
     666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
-    144799200ULL, 30925440ULL, 11571840ULL, 2932160ULL,
+    144799200ULL, 46388160ULL, 17357760ULL, 2932160ULL,
     666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
 };
 
@@ -32,17 +32,13 @@ int main(int argc, char* argv[]) {
     int vision = atoi(argv[2]);
     int division = atoi(argv[3]);
     string base_filename = argv[4];
-    string read_filename_str = base_filename + "_" + to_string(iteration) + ".bin";
-    const char* read_filename_c_str = read_filename_str.c_str();
-    unsigned long long int table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL;
-    unsigned long long int game_length_table_size64;
-    if(iteration >= 13) game_length_table_size64 = (placement_count[vision][16 - iteration] + 31ULL) / 32ULL;
-    else if(iteration >= 1) game_length_table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL;
-    else game_length_table_size64 = (placement_count[vision][16 - iteration] + 7ULL) / 8ULL;
-    Table new_table(16 - iteration, read_filename_c_str, argv[5 + division], table_size64, game_length_table_size64, placement_count[vision][16 - iteration]);
+    string read_filename_str = "data/db/" + base_filename + "_" + to_string(iteration) + ".bin";
+    Table new_table(16 - iteration, read_filename_str.c_str(), argv[5 + division], placement_count[vision][16 - iteration]);
+    string read_filename_str_division[4];
+    for (int i = 0; i < division; i++) { read_filename_str_division[i] = "data/db/" + string(argv[5 + i]); }
     unique_ptr<Table> old_table[division];
     for(int i = 0; i < division; i++) {
-      old_table[i] = make_unique<Table>(16 - iteration, argv[5 + i], argv[6 + division + i], table_size64, game_length_table_size64, placement_count[vision][16 - iteration]);
+      old_table[i] = make_unique<Table>(16 - iteration, read_filename_str_division[i].c_str(), argv[6 + division + i], placement_count[vision][16 - iteration]);
     }
     for(unsigned long long int i = 0; i < placement_count[vision][16 - iteration]; i++) {
         int val = old_table[i % division]->get(i);
@@ -78,17 +74,17 @@ int main(int argc, char* argv[]) {
                 cout << "division error2" << endl;
                 terminate();
         }
-        new_table.set(i, val);
+        new_table.set(i, val, game_length);
         if (i % 100000000ULL == 0ULL) { //1000000000ULL i
             cout << "id: " << i << ", nwin: " << win << ", nlose: " << lose << ", ndraw: " << draw << ", nnotwin: " << notwin << ", nnotlose: " << notlose << ", nunknown: " << unknown << endl;
         }
     }
     {   
-        OutTable out_table(16 - iteration, read_filename_c_str, placement_count[vision][16 - iteration]);
-        for (unsigned long long int i = 0; i < placement_count[vision][16 - iteration]; i++) { //haiti
-	  out_table.write(new_table.get(i), new_table.get_game_length(i));
-        }
-        out_table.flush();
+      OutTable out_table(16 - iteration, read_filename_str.c_str(), placement_count[vision][16 - iteration]);
+      for (unsigned long long int i = 0; i < placement_count[vision][16 - iteration]; i++) { //haiti
+	out_table.write(new_table.get(i));
+      }
+      out_table.flush();
     }
 
     cout << "nwin  =  " << win << endl;

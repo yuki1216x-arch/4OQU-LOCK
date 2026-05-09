@@ -17,14 +17,14 @@ constexpr int MAX_DEPTH = 168; // 168
 const string base[2] = {"white_table", "black_table"};
 
 constexpr unsigned long long int placement_count[2][17] {
-  {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
-      19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-      144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
-      666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
-  {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
-      19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-      144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
-      666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL}
+    {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
+    19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
+    144799200ULL, 61850880ULL, 17357760ULL, 4264960ULL,
+    666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
+    {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
+    19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
+    144799200ULL, 46388160ULL, 17357760ULL, 2932160ULL,
+    666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
 };
 
 void search(Node_base& cur, vector<unsigned char>& array_objid, const ZDD& zdd, int depth, unsigned long long int& leaf_id, int nmove, int vision) {
@@ -209,15 +209,9 @@ int main(int argc, char *argv[]) {
   int vision = atoi(argv[2]); // player perspective (0: white, 1: black)
   string base_filename = base[vision];
   string base_filename_opp = base[1-vision];
-  string read_filename_str = base_filename + "_" + std::to_string(iteration) + ".bin";
-  string read_filename_str_child = base_filename + "_" + std::to_string(iteration+1) + ".bin";
-  string read_filename_str_child_opp = base_filename_opp + "_" + std::to_string(iteration+1) + ".bin";
-  const char* read_filename_c_str = read_filename_str.c_str();
-  const char* read_filename_c_str_child = read_filename_str_child.c_str();
-  const char* read_filename_c_str_child_opp = read_filename_str_child_opp.c_str();
-  unsigned long long int parent_table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL; // parent table size
-  unsigned long long int child_table_size64 = (placement_count[vision][15 - iteration] + 15ULL) / 16ULL; // child table size
-  unsigned long long int opp_child_table_size64 = (placement_count[1 - vision][15 - iteration] + 15ULL) / 16ULL; // child table size (opponent's perspective)
+  string read_filename_str = "data/db/" + base_filename + "_" + std::to_string(iteration) + ".bin";
+  string read_filename_str_child = "data/db/" + base_filename + "_" + std::to_string(iteration+1) + ".bin";
+  string read_filename_str_child_opp = "data/db/" + base_filename_opp + "_" + std::to_string(iteration+1) + ".bin";
   unsigned long long int id = 0;
   
   unique_ptr<ZDD> zdd_parent = make_unique<ZDD>(vision, iteration);
@@ -248,9 +242,9 @@ int main(int argc, char *argv[]) {
   return 0;
 
   // from here, verify parent-child relationships
-  Table parent_table(16 - iteration, read_filename_c_str, "db", parent_table_size64, placement_count[vision][16 - iteration]); // parent talbe
-  Table child_table(15 - iteration, read_filename_c_str_child, "db", child_table_size64, placement_count[vision][15 - iteration]); // child table
-  Table opp_child_table(15 - iteration, read_filename_c_str_child_opp, "db", opp_child_table_size64, placement_count[1 - vision][15 - iteration]); // child table (opponent's perspective)
+  Table parent_table(16 - iteration, read_filename_str.c_str(), "db", placement_count[vision][16 - iteration]); // parent talbe
+  Table child_table(15 - iteration, read_filename_str_child.c_str(), "db", placement_count[vision][15 - iteration]); // child table
+  Table opp_child_table(15 - iteration, read_filename_str_child_opp.c_str(), "db", placement_count[1 - vision][15 - iteration]); // child table (opponent's perspective)
   Posi p;
   bool is_error = false;
 

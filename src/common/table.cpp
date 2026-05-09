@@ -68,59 +68,68 @@ InTable::InTable(int iter, const string &s, size_t num) noexcept : m_buffer(0), 
   }
 }
 
-Table::Table(int iter, const char* read_file_name, const char* write_file_name, unsigned long long int size, unsigned long long int size1, unsigned long long int size2) noexcept : m_table(new uint64_t [size] ), m_game_length_table(new uint64_t [size1] ), m_table_size(size), m_game_length_table_size(size1), m_iteration(16 - iter) {
+Table::Table(int iter, const char* read_file_name, const char* write_file_name, unsigned long long int placement_size) noexcept : m_iteration(16 - iter) {
+  if(m_iteration >= 13) {
+    m_table_size = (placement_size + 15ULL) / 16ULL;
+    m_bits_per_entry = 4;
+    m_entries_per_word = 16;
+    m_value_bits = 2;
+    m_game_length_bits = 2;
+  } else {
+    m_table_size = (placement_size + 7ULL) / 8ULL;
+    m_bits_per_entry = 8;
+    m_entries_per_word = 8;
+    m_value_bits = 3;
+    m_game_length_bits = 5;
+  }
+  
   assert(iter >= 0 && iter <= 16); //iter >= 0 && iter <= 15
+  m_table = new uint64_t [m_table_size];
+  
   assert(read_file_name && read_file_name[0] != '\0');
   assert(write_file_name && write_file_name[0] != '\0');
   cout << "read_file_name: " << read_file_name << endl;
   fstream read_file (read_file_name, fstream::in | fstream::binary);
   if(!read_file) {    //readファイルがなかった場合
     cout << "no file" << endl;
-    for(size_t tableid = 0; tableid < size; tableid++) m_table[tableid] = v_unknown; //全ての表を0にする
-    for(size_t tableid = 0; tableid < size1; tableid++) m_game_length_table[tableid] = 0ULL; //一旦最大値
+    for(size_t tableid = 0; tableid < m_table_size; tableid++) m_table[tableid] = v_unknown; //全ての表を0にする
   } else {
     {   
       unsigned long long int nwin = 0, nlose = 0, ndraw = 0, nunknown = 0, lunknown = 0; // lunknownが最後のunknownの番号(配置数-1しておく)
       unsigned long long int nnotwin = 0, nnotlose = 0;
       
       cout << "aaaa" << endl;
-      InTable in_table(iter, read_file_name, size2); //ここのInTableでエラー
+      InTable in_table(iter, read_file_name, placement_size); //ここのInTableでエラー
       cout << "bbbb" << endl;
-      for(unsigned long long int i = 0; i < size2; i++) {
-	unsigned int get_res = in_table.read();   //in_Tableからidを一つずつ読み込んでいき、その値をvに代入
-	unsigned int v, game_length;
-	if(iter >= 12) {
-	  if(get_res == 15U) {
-	    v = v_draw;
-	    game_length = 0U;
-	  } else {
-	    v = get_res & 7U;
-	    game_length = get_res >> 3U;
-	  }
-	} else {
-	  v = get_res & 7U;
-	  game_length = get_res >> 3U;
-	}
+      for(unsigned long long int i = 0; i < placement_size; i++) {
+	unsigned int entry = in_table.read();   //in_Tableからidを一つずつ読み込んでいき、その値をvに代入
+	unsigned int value = (unsigned int)((1U << m_value_bits) - 1U) & entry;
+	unsigned int game_length = (unsigned int)((1U << m_game_length_bits) - 1U) & (entry >> m_value_bits);
 	
-	if(v == v_win) {
+	if(value == v_win) {
 	  nwin++;
-	}else if(v == v_unknown) {
+	}else if(value == v_unknown) {
+	  assert(game_length == 0ULL);
 	  nunknown++;
 	  lunknown = i;
-	} else if(v == v_draw) {
+	} else if(value == v_draw) {
+	  assert(game_length == 0ULL);
 	  ndraw++;
-	} else if(v == v_notlose) {
+	} else if(value == v_notlose) {
+	  assert(game_length == 0ULL);
 	  nnotlose++;
-	} else if(v == v_notwin) {
+	} else if(value == v_notwin) {
+	  assert(game_length == 0ULL);
 	  nnotwin++;
 	} else {
 	  nlose++;
 	} 
-	set(i, v);
-	set_game_length(i, game_length);
+	set(i, entry);
       }
       cout << "before nwin  =  " << nwin << endl;
       cout << "before nlose  =  " << nlose << endl;
+      cout << "before nnotlose = " << nnotlose << endl;
+      cout << "before nnotwin = " << nnotwin << endl;
       cout << "before nunknown  =  " << nunknown << endl;
       cout << "last unknown  =  " << lunknown << endl;
     }

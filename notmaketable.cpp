@@ -16,11 +16,11 @@ using std::to_string;
 constexpr unsigned long long int placement_count[2][17] {
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-    144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
+    144799200ULL, 61850880ULL, 17357760ULL, 4264960ULL,
     666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
-    144799200ULL, 30925440ULL, 11571840ULL, 2932160ULL,
+    144799200ULL, 46388160ULL, 17357760ULL, 2932160ULL,
     666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
 };
 
@@ -36,8 +36,8 @@ unsigned long long int all_draw = 0;
 int main(int argc, char *argv[]) {
     int iteration = atoi(argv[1]);
     int vision = atoi(argv[2]); //0なら白視点, 1なら黒視点
-    unsigned long long int child_table_size64 = (placement_count[vision][15 - iteration] + 15ULL) / 16ULL; //子のtable size
-    unsigned long long int opp_child_table_size64 = (placement_count[1 - vision][15 - iteration] + 15ULL) / 16ULL; //相手視点の子のtable size
+    string read_filename_str_child = "data/db/" + argv[3];
+    string read_filename_str_child_opp = "data/db/" + argv[4];
     unique_ptr<ZDD> zdd_parent = make_unique<ZDD>(vision, iteration);
     unique_ptr<ZDD> zdd_child;
     unique_ptr<ZDD> zdd_child_opp;
@@ -49,8 +49,8 @@ int main(int argc, char *argv[]) {
       zdd_child = make_unique<ZDD>(vision, iteration + 1);
       zdd_child_opp = make_unique<ZDD>(1 - vision, iteration + 1);
     }
-    Table child_table(15 - iteration, argv[3], argv[5], child_table_size64, placement_count[vision][15 - iteration]); //子のtalbe
-    Table opp_child_table(15 - iteration, argv[4], argv[6], opp_child_table_size64, placement_count[1 - vision][15 - iteration]); //相手側の子のtable
+    Table child_table(15 - iteration, read_filename_str_child.c_str(), argv[5], placement_count[vision][15 - iteration]); //子のtalbe
+    Table opp_child_table(15 - iteration, read_filename_str_child_opp.c_str(), argv[6], placement_count[1 - vision][15 - iteration]); //相手側の子のtable
     Posi p;
 
     //簡易検証用
