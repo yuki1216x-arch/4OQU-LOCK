@@ -16,15 +16,14 @@ using std::to_string;
 using std::max;
 using std::min;
 
-
 constexpr unsigned long long int placement_count[2][17] {
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-    144799200ULL, 61850880ULL, 17357760ULL, 4264960ULL,
+    144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
     666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
-    144799200ULL, 46388160ULL, 17357760ULL, 2932160ULL,
+    144799200ULL, 30925440ULL, 11571840ULL, 2932160ULL,
     666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
 };
 
@@ -32,19 +31,22 @@ const string base[2] = {"white_table", "black_table"};
 
 unsigned long long int nwin = 0, nlose = 0, ndraw = 0, nunknown = 0, lunknown = 0, nnotwin = 0, nnotlose = 0;
 
-unsigned long long int mm_me_win = 0, mm_ee_win = 0, me_mm_win = 0, me_em_win = 0; //(視点手番)_(視点手番)_(ラベル)
+unsigned long long int mm_me_win = 0, mm_ee_win = 0, me_mm_win = 0, me_em_win = 0; //(current player)_(player's perspective)_(label)
 unsigned long long int mm_me_lose = 0, mm_ee_lose = 0, me_mm_lose = 0, me_em_lose = 0;
 unsigned long long int mm_me_ntwin = 0, mm_ee_ntwin = 0, me_mm_ntwin = 0, me_em_ntwin = 0;
 unsigned long long int mm_me_ntlose = 0, mm_ee_ntlose = 0, me_mm_ntlose = 0, me_em_ntlose = 0;
 unsigned long long int all_draw = 0;
-unsigned long long int win_turn[17] = {}, lose_turn[17] = {};
+unsigned long long int win_length_counts[17] = {}, loss_length_counts[17] = {};
 
 //---.exe iter read_file write_file
 int main(int argc, char *argv[]) {
   int iteration = atoi(argv[1]);
-  int vision = atoi(argv[2]); //0なら白視点, 1なら黒視点
-  int division = atoi(argv[3]); //分割数 分割しないなら1
-  int surplus = atoi(argv[4]); //2*i + jのjの部分 分割数が2のとき、0なら偶数だけの、1なら奇数番だけの表を作る 分割数が1のときは0固定
+  int vision = atoi(argv[2]); // 0: white's perspective, 1: black's perspective
+  int division = atoi(argv[3]); // number of partitions (1 if not partitioned)
+  int surplus = atoi(argv[4]);
+  // partition index of the table:
+  // if the number of partitions is 2, 0 creates the table for even entries and 1 creates the table for odd entries;
+  // if the number of partitions is 1, this value is fixed to 0
   string base_filename = base[vision];
   string base_filename_opp = base[1 - vision];
   string read_filename_str = "data/db/" + base_filename + "_" + to_string(iteration) + "_" + to_string(division) + "_" + to_string(surplus) + ".bin";
@@ -60,34 +62,38 @@ int main(int argc, char *argv[]) {
     zdd_child = make_unique<ZDD>(vision, iteration + 1);
     zdd_child_opp = make_unique<ZDD>(1 - vision, iteration + 1);
   }
-  
-  Table parent_table(16 - iteration, read_filename_str.c_str(), argv[5], placement_count[vision][16 - iteration]);   // 親のtable
-  Table child_table(15 - iteration, read_filename_str_child.c_str(), argv[6], placement_count[vision][15 - iteration]); //子のtalbe
-  Table opp_child_table(15 - iteration, read_filename_str_child_opp.c_str(), argv[7], placement_count[1 - vision][15 - iteration]); //相手側の子のtable
+
+  size_t bits_per_entry, child_bits_per_entry;
+  if(iteration > 12) bits_per_entry = 4, child_bits_per_entry = 4;
+  else if(iteration > 11) bits_per_entry = 8, child_bits_per_entry = 4;
+  else bits_per_entry = 8, child_bits_per_entry = 8;
+  Table parent_table(16 - iteration, read_filename_str.c_str(), bits_per_entry, placement_count[vision][16 - iteration]);   // parent table
+  Table child_table(15 - iteration, read_filename_str_child.c_str(), child_bits_per_entry, placement_count[vision][15 - iteration]); // child table
+  Table opp_child_table(15 - iteration, read_filename_str_child_opp.c_str(), child_bits_per_entry, placement_count[1 - vision][15 - iteration]); // opponents's child table
   Posi p;
 
-  //簡易検証用
-  // 乱数を格納する tbl_dbg 配列
+  // // For quick validation
+  // // tbl_dbg array storing random values
   // unsigned long long int tbl_dbg[16];
   
-  // // 乱数生成器のシード設定
+  // // seed the random number generator
   // mt19937_64 rng(high_resolution_clock::now().time_since_epoch().count());
   
-  // // placement_count[i][j] の値を取得
+  // // retrieve the value of placement_count[i][j]
   // unsigned long long int max_val = placement_count[vision][16 - iteration];
 
-  // // 乱数生成範囲の設定 (0 から max_val まで)
+  // // set the random range (0 to max_val)
   // uniform_int_distribution<unsigned long long int> dist(0, max_val);
-  
-  // cout << "placement_count[" << vision << "][" << 16 - iteration << "] (" << max_val << "以下) から16個の乱数を生成し、tbl_dbg に格納します。" << endl;
 
-  // // 乱数を生成して tbl_dbg に格納
+  // cout << "Generating 16 random values in the range [0, placement_count[" << vision << "][" << 16 - iteration << "] (" << max_val << ") ], and storing them in tbl_dbg..." << endl;
+
+  // // generate random values and store them in tbl_dbg
   // for (int k = 0; k < 16; ++k) {
   //     tbl_dbg[k] = dist(rng);
   // }
   
-  // // 生成された乱数を確認
-  // cout << "tbl_dbg に格納された値:";
+  // // check the generated random values
+  // cout << "Values stored in tbl_dbg:";
   // for (int k = 0; k < 16; ++k) {
   //     cout << " " << tbl_dbg[k];
   // }
@@ -115,12 +121,12 @@ int main(int argc, char *argv[]) {
     //int perfect_info_flg = 0;
     int notlose_flg = 0;
     int which_ntlose = 0;
-    //  簡易検証用
+    // // For quick validation
     // for(int i0 = 0; i0 < 16; i0++) {
     //     unsigned long long int i = tbl_dbg[i0];
     //     assert(i < placement_count[vision][16 - iteration]);
 
-    p.make_posi(division*i + surplus, *zdd_parent); //i番目の親の配置を作る i
+    p.make_posi(division*i + surplus, *zdd_parent); // create the i-th parent configuration
     // cout << "i = " << i << endl;
     // p.print();
     int win_game_length, lose_game_length;
@@ -128,11 +134,11 @@ int main(int argc, char *argv[]) {
     if(iteration % 2 == vision) win_game_length = 99;
     else win_game_length = -1;
     
-    Action actions[1000] = {}; //max_legal_numだった
-    unsigned char board_belief[12][46] = {}; //第三者視点の配置を保存する
-    int nchild = p.compute_actions(actions, vision, iteration); //合法手の列挙
+    Action actions[1000] = {}; // max_legal_num
+    unsigned char board_belief[12][46] = {}; // store the configuration from a third-party perspective
+    int nchild = p.compute_actions(actions, vision, iteration); // enumerate legal moves
     
-    int num_of_un = p.getunknowninfo(board_belief, vision, iteration); //配列を渡して見えないコマの数をreturnするようにする
+    int num_of_un = p.getunknowninfo(board_belief, vision, iteration); // pass an array and return the number of hidden pieces
     if(num_of_un == 1) {
       perfect++;
       //perfect_info_flg = 1;
@@ -152,40 +158,40 @@ int main(int argc, char *argv[]) {
 	
     int game_val = 0;
     int already_decided = 0;
-    if(nchild > 0) { //前半のループでは必勝、負無しを判定
+    if(nchild > 0) { // in the first loop, determine win and no-loss labels
       int num_of_action = nchild;
-      for(int which_table = 0; which_table < 2; which_table++) { //2種類のtableのどっちを使うか
-	int win_plan_num = 0; //必勝戦略の数
-	int lose_plan_num = 0; //必敗戦略の数
-	int nlose_plan_num = 0; //負無し戦略の数
-	int nwin_plan_num = 0; //勝無し戦略の数
-	int draw_plan_num = 0; //引分戦略の数
-	int unknown_plan_num = 0; //不明戦略の数
+      for(int which_table = 0; which_table < 2; which_table++) { // selects which of the two tables to use
+	int win_plan_num = 0; // number of win strategies
+	int lose_plan_num = 0; // number of loss strategies
+	int nlose_plan_num = 0; // number of no-loss strategies
+	int nwin_plan_num = 0; // number of no-win strategies
+	int draw_plan_num = 0; // number of draw strategies
+	int unknown_plan_num = 0; // number of unknown strategies
 	//cout << "using " << which_table << "table" << endl;
-	for(int j = 0; j < num_of_action; j++) { //合法手の数だけループ
-	  int kati = 0; //勝ち
-	  int make = 0; //負け
-	  int makenasi = 0; //負無し
-	  int katinasi = 0; //勝無し
-	  int hikiwake = 0; //引分
+	for(int j = 0; j < num_of_action; j++) { // loop over the number of legal moves
+	  int kati = 0; // win
+	  int make = 0; // loss
+	  int makenasi = 0; // no-loss
+	  int katinasi = 0; // no-win
+	  int hikiwake = 0; // draw
 	  int kati_game_length = -1;
 	  //cout << "|";
-	  for(int m = 0; m < num_of_un; m++) { //belief state内の節点の数だけループ
-	    p.make_posi_n(board_belief, m); //第3者視点の配置を作る
+	  for(int m = 0; m < num_of_un; m++) { // loop over all nodes in the belief state
+	    p.make_posi_n(board_belief, m); // create the configuration from a third-party perspective
 	    int board_check = p.make_action(actions[j], vision, iteration);
-	    if(board_check == 0) { //まだ終わってない 表から値を取ってくる
-	      if(which_table == 0) { //子が自分視点
+	    if(board_check == 0) { // not finished yet: retrieve the value from the table
+	      if(which_table == 0) { // child (player's perspective)
 		p.make_posi_myself();
-		unsigned long long int num_of_haiti = p.getzddnum(*zdd_child); //子のZDDから子の配置の番号を取得
-		int child_table_val = child_table.get_value(num_of_haiti); //子のtableから値を取得
+		unsigned long long int num_of_haiti = p.getzddnum(*zdd_child); // get the child configuration ID from the child's ZDD
+		int child_table_val = child_table.get_value(num_of_haiti); // retrieve the value from the child's table
 		assert(child_table_val >= 0 && child_table_val <= 5);
 		if(child_table_val == 1) {
-		  //視点プレイヤ勝ち
+		  // current player wins
 		  kati++;
 		  kati_game_length = max((int)child_table.get_game_length(num_of_haiti) + 1, kati_game_length);
 		  //cout << "w";
 		} else if(child_table_val == 2) {
-		  //視点プレイヤ負け
+		  // current player loses
 		  make++;
 		  //cout << "l";
 		} else if(child_table_val == 4) {
@@ -198,17 +204,17 @@ int main(int argc, char *argv[]) {
 		  hikiwake++;
 		  //cout << "d";
 		}
-	      } else { //子が相手視点
+	      } else { // child (opponent's perspective)
 		p.make_posi_opponent();
-		unsigned long long int num_of_haiti = p.getzddnum(*zdd_child_opp); //子のZDDから子の配置の番号を取得
-		int child_table_val = opp_child_table.get_value(num_of_haiti); //子のtableから値を取得
+		unsigned long long int num_of_haiti = p.getzddnum(*zdd_child_opp); // get the child configuration ID from the child's ZDD
+		int child_table_val = opp_child_table.get_value(num_of_haiti); // retrieve the value from the child's table
 		assert(child_table_val >= 0 && child_table_val <= 5);
 		if(child_table_val == 1) {
-		  //視点プレイヤ負け
+		  // current player loses
 		  make++;
 		  //cout << "l";
 		} else if(child_table_val == 2) {
-		  //視点プレイヤ勝ち
+		  // current player wins
 		  kati++;
 		  kati_game_length = max((int)opp_child_table.get_game_length(num_of_haiti) + 1, kati_game_length);
 		  //cout << "w";
@@ -225,27 +231,27 @@ int main(int argc, char *argv[]) {
 	      }
 	    } else {
 	      if(board_check == 3) {
-		//視点プレイヤ負け
+		// current player loses
 		make++;
 		//cout << "l";
 	      } else if(board_check == 2) {
-		//視点プレイヤ勝ち
+		// current player wins
 		kati++;
 		//cout << "kati: get = 0" << ", original = " << kati_game_length;
 		kati_game_length = max(1, kati_game_length);
 		//cout << "new = " << kati_game_length << endl;
 		//cout << "w";
 	      } else if(board_check == 10) {
-		//引分
+		// draw
 		hikiwake++;
 		//cout << "d";
 	      }
 	    }
 	    //cout << "|";
 	  }
-	  p.make_posi(division*i + surplus, *zdd_parent); //元に戻す
-	  //if() { //手番プレイヤが視点プレイヤのとき
-	  if(kati == num_of_un) { //必勝
+	  p.make_posi(division*i + surplus, *zdd_parent); // restore the original state
+	  //if() { // when the player to move is the player in this perspective
+	  if(kati == num_of_un) { // win
 	    if(iteration % 2 == vision) {
 	      if(already_decided != 1) {
 		game_val = -4;
@@ -265,15 +271,15 @@ int main(int argc, char *argv[]) {
 	      win_game_length = max(kati_game_length, win_game_length);
 	      //cout << "new = " << win_game_length << endl;
 	    }
-	  } else if(kati + makenasi + hikiwake == num_of_un) { //負無し
-	    if(hikiwake == num_of_un) { //引分
+	  } else if(kati + makenasi + hikiwake == num_of_un) { // no-loss
+	    if(hikiwake == num_of_un) { // draw
 	      draw_plan_num++;
 	    } else {
 	      nlose_plan_num++;
 	    }
-	  } else if(make == num_of_un) { //必敗
+	  } else if(make == num_of_un) { // loss
 	    lose_plan_num++;                    
-	  } else if(make + katinasi + hikiwake == num_of_un) { //勝無し
+	  } else if(make + katinasi + hikiwake == num_of_un) { // no-win
 	    nwin_plan_num++;
 	  } else {
 	    unknown_plan_num++;
@@ -302,18 +308,18 @@ int main(int argc, char *argv[]) {
 	    //     break;
 	    // }
 	  }
-	  // } else { //手番プレイヤが視点プレイヤでないとき
-	  //     if(kati == num_of_un) { //必勝
+	  // } else { // when the player to move is not the player in this perspective
+	  //     if(kati == num_of_un) { // win
 	  //         win_plan_num++;
-	  //     } else if(kati + makenasi + hikiwake == num_of_un) { //負無し
-	  //         if(hikiwake == num_of_un) { //引分
+	  //     } else if(kati + makenasi + hikiwake == num_of_un) { // no-loss
+	  //         if(hikiwake == num_of_un) { // draw
 	  //             draw_plan_num++;
 	  //         } else {
 	  //             nlose_plan_num++;
 	  //         }
-	  //     } else if(make == num_of_un) { //必敗
+	  //     } else if(make == num_of_un) { // loss
 	  //         lose_plan_num++;
-	  //     } else if(make + katinasi + hikiwake == num_of_un) { //勝無し
+	  //     } else if(make + katinasi + hikiwake == num_of_un) { // no-win
 	  //         nwin_plan_num++;
 	  //     } else {
 	  //         unknown_plan_num++;
@@ -322,20 +328,21 @@ int main(int argc, char *argv[]) {
 	  
 	  //cout << endl;
 	}
-	//すべての合法手を確認した後
+	// after checking all legal moves
 	if(already_decided == 0) {
 	  if(win_plan_num == num_of_action) {
-	    game_val = -4; //必勝を与える
+	    game_val = -4; // assign a win label
 	    if(which_table == 0) {
 	      me_mm_win++;
 	    } else {
 	      me_em_win++;
 	    }
 	  } else if(nlose_plan_num + win_plan_num + draw_plan_num == num_of_action) {
-	    //自分が完全情報でも相手が不完全情報なら負無しがつくが、相手も完全情報ならついてはいけない
+	    // // a no-loss label may be assigned when the current player has perfect information and the opponent has imperfect information,
+	    // // but not when the opponent also has perfect information
 	    // if(perfect_info_flg == 1) {
-	    //     if(p.is_opp_uninfo(board_belief, vision, iteration)) { //相手が不完全情報なら
-	    //         // game_val = -6; //負無しを与える
+	    //     if(p.is_opp_uninfo(board_belief, vision, iteration)) { // if the opponent has imperfect information
+	    //         // game_val = -6; // assign a no-loss label
 	    //         if(which_table == 0) {
 	    //             me_mm_ntlose++;
 	    //             which_ntlose = 3;
@@ -346,7 +353,7 @@ int main(int argc, char *argv[]) {
 	    //         notlose_flg = 1;
 	    //     }
 	    // } else {
-	    // game_val = -6; //負無しを与える
+	    // game_val = -6; // assign a no-loss label
 	    if(which_table == 0) {
 	      me_mm_ntlose++;
 	      which_ntlose = 3;
@@ -585,13 +592,13 @@ int main(int argc, char *argv[]) {
       parent_table.set(division*i + surplus, v_win, win_game_length);
       //cout << "win" << endl;
       nwin++;
-      win_turn[win_game_length]++;
+      win_length_counts[win_game_length]++;
     } else if(nchild == -2 || nchild == -5) {
       assert(lose_game_length >= 0 && lose_game_length <= 16 - iteration);
       parent_table.set(division*i + surplus, v_lose, lose_game_length);
       //cout << "lose" << endl;
       nlose++;
-      lose_turn[lose_game_length]++;
+      loss_length_counts[lose_game_length]++;
     } else if(nchild == -8) {
       parent_table.set(division*i + surplus, v_draw, 0ULL);
       //cout << "draw" << endl;
@@ -615,33 +622,33 @@ int main(int argc, char *argv[]) {
 
     if ((surplus == 0 && ((division*i + surplus) % 10000000000ULL) == 0ULL) || (surplus == 1 && ((division*i + surplus) % 10000000000ULL) == 1ULL) || (surplus == 2 && ((division*i + surplus) % 10000000000ULL) == 2ULL) || (surplus == 3 && ((division*i + surplus) % 10000000000ULL) == 3ULL)) { //1000000000ULL i
       cout << "win positions by shortest win length:" << endl;
-      cout << "0 moves: " << std::setw(12) << win_turn[0] << " positions" << "          9 moves: " << std::setw(12) << win_turn[9] << " positions" << endl;
-      cout << "1 move : " << std::setw(12) << win_turn[1] << " positions" << "         10 moves: " << std::setw(12) << win_turn[10] << " positions" << endl;
-      cout << "2 moves: " << std::setw(12) << win_turn[2] << " positions" << "         11 moves: " << std::setw(12) << win_turn[11] << " positions" << endl;
-      cout << "3 moves: " << std::setw(12) << win_turn[3] << " positions" << "         12 moves: " << std::setw(12) << win_turn[12] << " positions" << endl;
-      cout << "4 moves: " << std::setw(12) << win_turn[4] << " positions" << "         13 moves: " << std::setw(12) << win_turn[13] << " positions" << endl;
-      cout << "5 moves: " << std::setw(12) << win_turn[5] << " positions" << "         14 moves: " << std::setw(12) << win_turn[14] << " positions" << endl;
-      cout << "6 moves: " << std::setw(12) << win_turn[6] << " positions" << "         15 moves: " << std::setw(12) << win_turn[15] << " positions" << endl;
-      cout << "7 moves: " << std::setw(12) << win_turn[7] << " positions" << "         16 moves: " << std::setw(12) << win_turn[16] << " positions" << endl;
-      cout << "8 moves: " << std::setw(12) << win_turn[8] << " positions" << endl;
+      cout << "0 moves: " << std::setw(12) << win_length_counts[0] << " positions" << "          9 moves: " << std::setw(12) << win_length_counts[9] << " positions" << endl;
+      cout << "1 move : " << std::setw(12) << win_length_counts[1] << " positions" << "         10 moves: " << std::setw(12) << win_length_counts[10] << " positions" << endl;
+      cout << "2 moves: " << std::setw(12) << win_length_counts[2] << " positions" << "         11 moves: " << std::setw(12) << win_length_counts[11] << " positions" << endl;
+      cout << "3 moves: " << std::setw(12) << win_length_counts[3] << " positions" << "         12 moves: " << std::setw(12) << win_length_counts[12] << " positions" << endl;
+      cout << "4 moves: " << std::setw(12) << win_length_counts[4] << " positions" << "         13 moves: " << std::setw(12) << win_length_counts[13] << " positions" << endl;
+      cout << "5 moves: " << std::setw(12) << win_length_counts[5] << " positions" << "         14 moves: " << std::setw(12) << win_length_counts[14] << " positions" << endl;
+      cout << "6 moves: " << std::setw(12) << win_length_counts[6] << " positions" << "         15 moves: " << std::setw(12) << win_length_counts[15] << " positions" << endl;
+      cout << "7 moves: " << std::setw(12) << win_length_counts[7] << " positions" << "         16 moves: " << std::setw(12) << win_length_counts[16] << " positions" << endl;
+      cout << "8 moves: " << std::setw(12) << win_length_counts[8] << " positions" << endl;
 
       cout << endl;
       cout << "lose positions by longest lose length:" << endl;
-      cout << "0 moves: " << std::setw(12) << lose_turn[0] << " positions" << "          9 moves: " << std::setw(12) << lose_turn[9] << " positions" << endl;
-      cout << "1 move : " << std::setw(12) << lose_turn[1] << " positions" << "         10 moves: " << std::setw(12) << lose_turn[10] << " positions" << endl;
-      cout << "2 moves: " << std::setw(12) << lose_turn[2] << " positions" << "         11 moves: " << std::setw(12) << lose_turn[11] << " positions" << endl;
-      cout << "3 moves: " << std::setw(12) << lose_turn[3] << " positions" << "         12 moves: " << std::setw(12) << lose_turn[12] << " positions" << endl;
-      cout << "4 moves: " << std::setw(12) << lose_turn[4] << " positions" << "         13 moves: " << std::setw(12) << lose_turn[13] << " positions" << endl;
-      cout << "5 moves: " << std::setw(12) << lose_turn[5] << " positions" << "         14 moves: " << std::setw(12) << lose_turn[14] << " positions" << endl;
-      cout << "6 moves: " << std::setw(12) << lose_turn[6] << " positions" << "         15 moves: " << std::setw(12) << lose_turn[15] << " positions" << endl;
-      cout << "7 moves: " << std::setw(12) << lose_turn[7] << " positions" << "         16 moves: " << std::setw(12) << lose_turn[16] << " positions" << endl;
-      cout << "8 moves: " << std::setw(12) << lose_turn[8] << " positions" << endl;
+      cout << "0 moves: " << std::setw(12) << loss_length_counts[0] << " positions" << "          9 moves: " << std::setw(12) << loss_length_counts[9] << " positions" << endl;
+      cout << "1 move : " << std::setw(12) << loss_length_counts[1] << " positions" << "         10 moves: " << std::setw(12) << loss_length_counts[10] << " positions" << endl;
+      cout << "2 moves: " << std::setw(12) << loss_length_counts[2] << " positions" << "         11 moves: " << std::setw(12) << loss_length_counts[11] << " positions" << endl;
+      cout << "3 moves: " << std::setw(12) << loss_length_counts[3] << " positions" << "         12 moves: " << std::setw(12) << loss_length_counts[12] << " positions" << endl;
+      cout << "4 moves: " << std::setw(12) << loss_length_counts[4] << " positions" << "         13 moves: " << std::setw(12) << loss_length_counts[13] << " positions" << endl;
+      cout << "5 moves: " << std::setw(12) << loss_length_counts[5] << " positions" << "         14 moves: " << std::setw(12) << loss_length_counts[14] << " positions" << endl;
+      cout << "6 moves: " << std::setw(12) << loss_length_counts[6] << " positions" << "         15 moves: " << std::setw(12) << loss_length_counts[15] << " positions" << endl;
+      cout << "7 moves: " << std::setw(12) << loss_length_counts[7] << " positions" << "         16 moves: " << std::setw(12) << loss_length_counts[16] << " positions" << endl;
+      cout << "8 moves: " << std::setw(12) << loss_length_counts[8] << " positions" << endl;
     }
     // cout << "i = " << i << endl;
   }
   cout << "before_outtable" << endl;                                                                 // ***
   {   
-    OutTable out_table(16 - iteration, read_filename_str.c_str(), placement_count[vision][16 - iteration]);
+    OutTable out_table(16 - iteration, read_filename_str.c_str(), placement_count[vision][16 - iteration], bits_per_entry);
     for (unsigned long long int i = 0; i < placement_count[vision][16 - iteration]; i++) { //haiti
       out_table.write(parent_table.get(i));
     }
@@ -668,27 +675,27 @@ int main(int argc, char *argv[]) {
 
   cout << endl;
   cout << "win positions by shortest win length:" << endl;
-  cout << "0 moves: " << std::setw(12) << win_turn[0] << " positions" << "          9 moves: " << std::setw(12) << win_turn[9] << " positions" << endl;
-  cout << "1 move : " << std::setw(12) << win_turn[1] << " positions" << "         10 moves: " << std::setw(12) << win_turn[10] << " positions" << endl;
-  cout << "2 moves: " << std::setw(12) << win_turn[2] << " positions" << "         11 moves: " << std::setw(12) << win_turn[11] << " positions" << endl;
-  cout << "3 moves: " << std::setw(12) << win_turn[3] << " positions" << "         12 moves: " << std::setw(12) << win_turn[12] << " positions" << endl;
-  cout << "4 moves: " << std::setw(12) << win_turn[4] << " positions" << "         13 moves: " << std::setw(12) << win_turn[13] << " positions" << endl;
-  cout << "5 moves: " << std::setw(12) << win_turn[5] << " positions" << "         14 moves: " << std::setw(12) << win_turn[14] << " positions" << endl;
-  cout << "6 moves: " << std::setw(12) << win_turn[6] << " positions" << "         15 moves: " << std::setw(12) << win_turn[15] << " positions" << endl;
-  cout << "7 moves: " << std::setw(12) << win_turn[7] << " positions" << "         16 moves: " << std::setw(12) << win_turn[16] << " positions" << endl;
-  cout << "8 moves: " << std::setw(12) << win_turn[8] << " positions" << endl;
+  cout << "0 moves: " << std::setw(12) << win_length_counts[0] << " positions" << "          9 moves: " << std::setw(12) << win_length_counts[9] << " positions" << endl;
+  cout << "1 move : " << std::setw(12) << win_length_counts[1] << " positions" << "         10 moves: " << std::setw(12) << win_length_counts[10] << " positions" << endl;
+  cout << "2 moves: " << std::setw(12) << win_length_counts[2] << " positions" << "         11 moves: " << std::setw(12) << win_length_counts[11] << " positions" << endl;
+  cout << "3 moves: " << std::setw(12) << win_length_counts[3] << " positions" << "         12 moves: " << std::setw(12) << win_length_counts[12] << " positions" << endl;
+  cout << "4 moves: " << std::setw(12) << win_length_counts[4] << " positions" << "         13 moves: " << std::setw(12) << win_length_counts[13] << " positions" << endl;
+  cout << "5 moves: " << std::setw(12) << win_length_counts[5] << " positions" << "         14 moves: " << std::setw(12) << win_length_counts[14] << " positions" << endl;
+  cout << "6 moves: " << std::setw(12) << win_length_counts[6] << " positions" << "         15 moves: " << std::setw(12) << win_length_counts[15] << " positions" << endl;
+  cout << "7 moves: " << std::setw(12) << win_length_counts[7] << " positions" << "         16 moves: " << std::setw(12) << win_length_counts[16] << " positions" << endl;
+  cout << "8 moves: " << std::setw(12) << win_length_counts[8] << " positions" << endl;
 
   cout << endl;
   cout << "lose positions by longest lose length:" << endl;
-  cout << "0 moves: " << std::setw(12) << lose_turn[0] << " positions" << "          9 moves: " << std::setw(12) << lose_turn[9] << " positions" << endl;
-  cout << "1 move : " << std::setw(12) << lose_turn[1] << " positions" << "         10 moves: " << std::setw(12) << lose_turn[10] << " positions" << endl;
-  cout << "2 moves: " << std::setw(12) << lose_turn[2] << " positions" << "         11 moves: " << std::setw(12) << lose_turn[11] << " positions" << endl;
-  cout << "3 moves: " << std::setw(12) << lose_turn[3] << " positions" << "         12 moves: " << std::setw(12) << lose_turn[12] << " positions" << endl;
-  cout << "4 moves: " << std::setw(12) << lose_turn[4] << " positions" << "         13 moves: " << std::setw(12) << lose_turn[13] << " positions" << endl;
-  cout << "5 moves: " << std::setw(12) << lose_turn[5] << " positions" << "         14 moves: " << std::setw(12) << lose_turn[14] << " positions" << endl;
-  cout << "6 moves: " << std::setw(12) << lose_turn[6] << " positions" << "         15 moves: " << std::setw(12) << lose_turn[15] << " positions" << endl;
-  cout << "7 moves: " << std::setw(12) << lose_turn[7] << " positions" << "         16 moves: " << std::setw(12) << lose_turn[16] << " positions" << endl;
-  cout << "8 moves: " << std::setw(12) << lose_turn[8] << " positions" << endl;
+  cout << "0 moves: " << std::setw(12) << loss_length_counts[0] << " positions" << "          9 moves: " << std::setw(12) << loss_length_counts[9] << " positions" << endl;
+  cout << "1 move : " << std::setw(12) << loss_length_counts[1] << " positions" << "         10 moves: " << std::setw(12) << loss_length_counts[10] << " positions" << endl;
+  cout << "2 moves: " << std::setw(12) << loss_length_counts[2] << " positions" << "         11 moves: " << std::setw(12) << loss_length_counts[11] << " positions" << endl;
+  cout << "3 moves: " << std::setw(12) << loss_length_counts[3] << " positions" << "         12 moves: " << std::setw(12) << loss_length_counts[12] << " positions" << endl;
+  cout << "4 moves: " << std::setw(12) << loss_length_counts[4] << " positions" << "         13 moves: " << std::setw(12) << loss_length_counts[13] << " positions" << endl;
+  cout << "5 moves: " << std::setw(12) << loss_length_counts[5] << " positions" << "         14 moves: " << std::setw(12) << loss_length_counts[14] << " positions" << endl;
+  cout << "6 moves: " << std::setw(12) << loss_length_counts[6] << " positions" << "         15 moves: " << std::setw(12) << loss_length_counts[15] << " positions" << endl;
+  cout << "7 moves: " << std::setw(12) << loss_length_counts[7] << " positions" << "         16 moves: " << std::setw(12) << loss_length_counts[16] << " positions" << endl;
+  cout << "8 moves: " << std::setw(12) << loss_length_counts[8] << " positions" << endl;
   
   return 0;
 }

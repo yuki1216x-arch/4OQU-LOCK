@@ -1,0 +1,138 @@
+root->num = 768
+root->lengthmax = 41
+root->lengthmin = 33
+root->lengthave = 37.6042
+sumad = 121
+root->num = 10336
+root->lengthmax = 43
+root->lengthmin = 32
+root->lengthave = 38.0178
+sumad = 467
+root->num = 10336
+root->lengthmax = 40
+root->lengthmin = 32
+root->lengthave = 36.8251
+sumad = 467
+read_file_name: data/db/white_table_1.bin
+aaaa
+header[0]: 0
+header[1]: 15
+header[2]: 0
+header[3]: 3
+header[4]: 0
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  240
+before nlose  =  0
+before nnotlose = 0
+before nnotwin = 0
+before nunknown  =  528
+last unknown  =  671
+read_file_name: data/db/white_table_2.bin
+aaaa
+header[0]: 0
+header[1]: 14
+header[2]: 96
+header[3]: 40
+header[4]: 0
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  4374
+before nlose  =  200
+before nnotlose = 392
+before nnotwin = 0
+before nunknown  =  5370
+last unknown  =  10335
+read_file_name: data/db/black_table_2.bin
+aaaa
+header[0]: 0
+header[1]: 14
+header[2]: 96
+header[3]: 40
+header[4]: 0
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  582
+before nlose  =  168
+before nnotlose = 26
+before nnotwin = 24
+before nunknown  =  9536
+last unknown  =  10335
+this configuration is win
+ID of this configuration: 720
+WBBBWBBB
+UUUUUUW.
+   _______________
+   | B. .. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   ^^^^^^^^^^^^^^^
+child number 0 is win(table0)
+Action is (0, 15, 100, 100)
+game_length = 10
+
+child number 1 is win(table0)
+Action is (0, 16, 100, 100)
+game_length = 6
+
+child number 2 is win(table0)
+Action is (0, 17, 100, 100)
+game_length = 6
+
+child number 3 is win(table0)
+Action is (0, 19, 100, 100)
+game_length = 10
+
+child number 4 is win(table0)
+Action is (0, 20, 100, 100)
+game_length = 6
+
+child number 5 is win(table0)
+Action is (0, 21, 100, 100)
+game_length = 6
+
+child number 6 is win(table0)
+Action is (0, 22, 100, 100)
+game_length = 6
+
+child number 7 is win(table0)
+Action is (0, 24, 100, 100)
+game_length = 6
+
+child number 8 is win(table0)
+Action is (0, 25, 100, 100)
+game_length = 6
+
+child number 9 is win(table0)
+Action is (0, 26, 100, 100)
+game_length = 6
+
+child number 10 is win(table0)
+Action is (0, 27, 100, 100)
+game_length = 6
+
+child number 11 is win(table0)
+Action is (0, 29, 100, 100)
+game_length = 6
+
+child number 12 is win(table0)
+Action is (0, 30, 100, 100)
+game_length = 6
+
+child number 13 is win(table0)
+Action is (0, 31, 100, 100)
+game_length = 6
+
+child number 14 is win(table0)
+Action is (0, 32, 100, 100)
+game_length = 6
+
+result is win
+win game length is 10

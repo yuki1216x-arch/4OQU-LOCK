@@ -3,11 +3,11 @@
 # =========================
 
 CXX       := g++
-CXXFLAGS  := -std=c++14 -O2 -Wall -pthread
+CXXFLAGS  := -std=c++14 -O2 -Wall -pthread #-DNDEBUG
 INCLUDES  := -Isrc/common
 
 # sanitizer/debug
-DEBUGFLAGS  := -g -O0 -fsanitize=address, undefined
+DEBUGFLAGS  := -g -O0
 
 # =========================
 # directories
@@ -29,24 +29,25 @@ OBJ_DIR  := obj
 COMMON_BASE_SRC  := \
 	src/common/node.cpp \
 	src/common/zdd_yonoku.cpp \
-	src/common/posi_yonoku.cpp
-COMMON_TABLE_SRC  := \
+	src/common/posi_yonoku.cpp \
 	src/common/table.cpp
-COMMON_TABLE_2BIT_SRC  := \
-	src/common/table_reachability.cpp
+#COMMON_TABLE_SRC  := \
+#	src/common/table.cpp
+#COMMON_TABLE_2BIT_SRC  := \
+#	src/common/table_reachability.cpp
 
-ANALYSIS_COMMON_SRC  := \
-	$(COMMON_BASE_SRC) \
-	$(COMMON_TABLE_SRC)
-VALIDATION_COMMON_SRC  := \
-	$(COMMON_BASE_SRC) \
-	$(COMMON_TABLE_SRC)
-LOOKUP_COMMON_SRC  := \
-	$(COMMON_BASE_SRC) \
-	$(COMMON_TABLE_SRC)
-REACHABILITY_COMMON_SRC  := \
-	$(COMMON_BASE_SRC) \
-	$(COMMON_TABLE_2BIT_SRC)
+#ANALYSIS_COMMON_SRC  := \
+#	$(COMMON_BASE_SRC) \
+#	$(COMMON_TABLE_SRC)
+#VALIDATION_COMMON_SRC  := \
+#	$(COMMON_BASE_SRC) \
+#	$(COMMON_TABLE_SRC)
+#LOOKUP_COMMON_SRC  := \
+#	$(COMMON_BASE_SRC) \
+#	$(COMMON_TABLE_SRC)
+#REACHABILITY_COMMON_SRC  := \
+#	$(COMMON_BASE_SRC) \
+#	$(COMMON_TABLE_2BIT_SRC)
 
 ANALYSIS_SRC      := $(wildcard $(ANALYSIS_DIR)/*.cpp)
 VALIDATION_SRC    := $(wildcard $(VALIDATION_DIR)/*.cpp)
@@ -79,22 +80,22 @@ all: $(TARGETS)
 # =========================
 
 # analysis
-$(BIN_DIR)/%: $(ANALYSIS_DIR)/%.cpp $(ANALYSIS_COMMON_SRC)
+$(BIN_DIR)/%: $(ANALYSIS_DIR)/%.cpp $(COMMON_BASE_SRC)
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
 
 # validation
-$(BIN_DIR)/%: $(VALIDATION_DIR)/%.cpp $(VALIDATION_COMMON_SRC)
+$(BIN_DIR)/%: $(VALIDATION_DIR)/%.cpp $(COMMON_BASE_SRC)
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
 
 # lookup
-$(BIN_DIR)/%: $(LOOKUP_DIR)/%.cpp $(LOOKUP_COMMON_SRC)
+$(BIN_DIR)/%: $(LOOKUP_DIR)/%.cpp $(COMMON_BASE_SRC)
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
 
 # reachability
-$(BIN_DIR)/%: $(REACHABILITY_DIR)/%.cpp $(REACHABILITY_COMMON_SRC)
+$(BIN_DIR)/%: $(REACHABILITY_DIR)/%.cpp $(COMMON_BASE_SRC)
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $(INCLUDES) $^ -o $@
 

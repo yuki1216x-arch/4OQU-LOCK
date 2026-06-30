@@ -1,0 +1,263 @@
+root->num = 10336
+root->lengthmax = 43
+root->lengthmin = 32
+root->lengthave = 38.0178
+sumad = 467
+root->num = 102400
+root->lengthmax = 44
+root->lengthmin = 32
+root->lengthave = 39.3231
+sumad = 801
+root->num = 73600
+root->lengthmax = 41
+root->lengthmin = 32
+root->lengthave = 38.0467
+sumad = 801
+read_file_name: data/db/white_table_2.bin
+aaaa
+header[0]: 0
+header[1]: 14
+header[2]: 96
+header[3]: 40
+header[4]: 0
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  4374
+before nlose  =  200
+before nnotlose = 392
+before nnotwin = 0
+before nunknown  =  5370
+last unknown  =  10335
+read_file_name: data/db/white_table_3.bin
+aaaa
+header[0]: 0
+header[1]: 13
+header[2]: 0
+header[3]: 144
+header[4]: 1
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  12396
+before nlose  =  4064
+before nnotlose = 1196
+before nnotwin = 96
+before nunknown  =  84648
+last unknown  =  102399
+read_file_name: data/db/black_table_3.bin
+aaaa
+header[0]: 0
+header[1]: 13
+header[2]: 128
+header[3]: 31
+header[4]: 1
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  27256
+before nlose  =  1712
+before nnotlose = 1228
+before nnotwin = 80
+before nunknown  =  43324
+last unknown  =  73599
+this configuration is win
+ID of this configuration: 1636
+.BBBWBBB
+UUUUUUW.
+   _______________
+   | B. W. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   ^^^^^^^^^^^^^^^
+child number 3 is win(table0)
+Action is (39, 16, 15, 14)
+after id is 12001
+game_length = 11
+
+child number 5 is win(table0)
+Action is (39, 16, 15, 20)
+after id is 12093
+game_length = 11
+
+child number 8 is win(table0)
+Action is (39, 17, 14, 19)
+after id is 12922
+game_length = 11
+
+child number 9 is win(table0)
+Action is (39, 17, 15, 14)
+after id is 12002
+game_length = 11
+
+child number 11 is win(table0)
+Action is (39, 17, 15, 20)
+after id is 12106
+game_length = 11
+
+child number 15 is win(table0)
+Action is (39, 19, 15, 14)
+after id is 12003
+game_length = 9
+
+child number 21 is win(table0)
+Action is (39, 20, 15, 14)
+after id is 12004
+game_length = 11
+
+child number 22 is win(table0)
+Action is (39, 20, 15, 16)
+after id is 12093
+game_length = 11
+
+child number 23 is win(table0)
+Action is (39, 20, 15, 20)
+after id is 12129
+game_length = 11
+
+child number 26 is win(table0)
+Action is (39, 21, 14, 19)
+after id is 12963
+game_length = 11
+
+child number 27 is win(table0)
+Action is (39, 21, 15, 14)
+after id is 12005
+game_length = 11
+
+child number 29 is win(table0)
+Action is (39, 21, 15, 20)
+after id is 12130
+game_length = 13
+
+child number 32 is win(table0)
+Action is (39, 22, 14, 19)
+after id is 12964
+game_length = 11
+
+child number 33 is win(table0)
+Action is (39, 22, 15, 14)
+after id is 12006
+game_length = 11
+
+child number 34 is win(table0)
+Action is (39, 22, 15, 16)
+after id is 12095
+game_length = 11
+
+child number 35 is win(table0)
+Action is (39, 22, 15, 20)
+after id is 12131
+game_length = 11
+
+child number 39 is win(table0)
+Action is (39, 24, 15, 14)
+after id is 12007
+game_length = 11
+
+child number 41 is win(table0)
+Action is (39, 24, 15, 20)
+after id is 12132
+game_length = 11
+
+child number 44 is win(table0)
+Action is (39, 25, 14, 19)
+after id is 12966
+game_length = 11
+
+child number 45 is win(table0)
+Action is (39, 25, 15, 14)
+after id is 12008
+game_length = 11
+
+child number 47 is win(table0)
+Action is (39, 25, 15, 20)
+after id is 12133
+game_length = 13
+
+child number 51 is win(table0)
+Action is (39, 26, 15, 14)
+after id is 12009
+game_length = 11
+
+child number 52 is win(table0)
+Action is (39, 26, 15, 16)
+after id is 12098
+game_length = 11
+
+child number 53 is win(table0)
+Action is (39, 26, 15, 20)
+after id is 12134
+game_length = 11
+
+child number 57 is win(table0)
+Action is (39, 27, 15, 14)
+after id is 12010
+game_length = 11
+
+child number 58 is win(table0)
+Action is (39, 27, 15, 16)
+after id is 12099
+game_length = 11
+
+child number 59 is win(table0)
+Action is (39, 27, 15, 20)
+after id is 12135
+game_length = 11
+
+child number 63 is win(table0)
+Action is (39, 29, 15, 14)
+after id is 12011
+game_length = 11
+
+child number 65 is win(table0)
+Action is (39, 29, 15, 20)
+after id is 12136
+game_length = 11
+
+child number 69 is win(table0)
+Action is (39, 30, 15, 14)
+after id is 12012
+game_length = 11
+
+child number 71 is win(table0)
+Action is (39, 30, 15, 20)
+after id is 12137
+game_length = 11
+
+child number 75 is win(table0)
+Action is (39, 31, 15, 14)
+after id is 12013
+game_length = 11
+
+child number 76 is win(table0)
+Action is (39, 31, 15, 16)
+after id is 12102
+game_length = 11
+
+child number 77 is win(table0)
+Action is (39, 31, 15, 20)
+after id is 12138
+game_length = 11
+
+child number 81 is win(table0)
+Action is (39, 32, 15, 14)
+after id is 12014
+game_length = 11
+
+child number 82 is win(table0)
+Action is (39, 32, 15, 16)
+after id is 12103
+game_length = 11
+
+child number 83 is win(table0)
+Action is (39, 32, 15, 20)
+after id is 12139
+game_length = 11
+
+result is win
+win game length is 9

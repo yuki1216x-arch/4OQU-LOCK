@@ -19,11 +19,11 @@ const string base[2] = {"white_table", "black_table"};
 constexpr unsigned long long int placement_count[2][17] {
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-    144799200ULL, 61850880ULL, 17357760ULL, 4264960ULL,
+    144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
     666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
-    144799200ULL, 46388160ULL, 17357760ULL, 2932160ULL,
+    144799200ULL, 30925440ULL, 11571840ULL, 2932160ULL,
     666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
 };
 
@@ -242,9 +242,14 @@ int main(int argc, char *argv[]) {
   return 0;
 
   // from here, verify parent-child relationships
-  Table parent_table(16 - iteration, read_filename_str.c_str(), "db", placement_count[vision][16 - iteration]); // parent talbe
-  Table child_table(15 - iteration, read_filename_str_child.c_str(), "db", placement_count[vision][15 - iteration]); // child table
-  Table opp_child_table(15 - iteration, read_filename_str_child_opp.c_str(), "db", placement_count[1 - vision][15 - iteration]); // child table (opponent's perspective)
+  size_t bits_per_entry, child_bits_per_entry;
+  if(iteration > 12) bits_per_entry = 4, child_bits_per_entry = 4;
+  else if(iteration > 11) bits_per_entry = 8, child_bits_per_entry = 4;
+  else bits_per_entry = 8, child_bits_per_entry = 8;
+  
+  Table parent_table(16 - iteration, read_filename_str.c_str(), bits_per_entry, placement_count[vision][16 - iteration]); // parent talbe
+  Table child_table(15 - iteration, read_filename_str_child.c_str(), child_bits_per_entry, placement_count[vision][15 - iteration]); // child table
+  Table opp_child_table(15 - iteration, read_filename_str_child_opp.c_str(), child_bits_per_entry, placement_count[1 - vision][15 - iteration]); // child table (opponent's perspective)
   Posi p;
   bool is_error = false;
 

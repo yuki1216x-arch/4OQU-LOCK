@@ -1,0 +1,678 @@
+root->num = 2932160
+root->lengthmax = 48
+root->lengthmin = 32
+root->lengthave = 42.1529
+sumad = 1789
+root->num = 11571840
+root->lengthmax = 51
+root->lengthmin = 32
+root->lengthave = 43.6984
+sumad = 2425
+root->num = 11571840
+root->lengthmax = 49
+root->lengthmin = 32
+root->lengthave = 42.9484
+sumad = 2425
+read_file_name: data/db/white_table_5.bin
+aaaa
+header[0]: 0
+header[1]: 11
+header[2]: 192
+header[3]: 189
+header[4]: 44
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  358100
+before nlose  =  322768
+before nnotlose = 32324
+before nnotwin = 18280
+before nunknown  =  2200688
+last unknown  =  2932159
+read_file_name: data/db/white_table_6.bin
+aaaa
+header[0]: 0
+header[1]: 10
+header[2]: 128
+header[3]: 146
+header[4]: 176
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  6863300
+before nlose  =  246004
+before nnotlose = 245798
+before nnotwin = 8116
+before nunknown  =  4208622
+last unknown  =  11571839
+read_file_name: data/db/black_table_6.bin
+aaaa
+header[0]: 0
+header[1]: 10
+header[2]: 128
+header[3]: 146
+header[4]: 176
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  871572
+before nlose  =  2695272
+before nnotlose = 99154
+before nnotwin = 208800
+before nunknown  =  7697042
+last unknown  =  11571839
+this configuration is win
+ID of this configuration: 600967
+..BBWBBB
+UUUUW...
+   _______________
+   | BW .. B. .. |
+   | W. W. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   ^^^^^^^^^^^^^^^
+child number 0 is win(table0)
+Action is (2, 15, 16, 15)
+after id is 4353643
+game_length = 2
+
+child number 1 is win(table0)
+Action is (2, 15, 16, 16)
+after id is 4354731
+game_length = 2
+
+child number 2 is win(table0)
+Action is (2, 15, 16, 17)
+after id is 4355130
+game_length = 2
+
+child number 3 is win(table0)
+Action is (2, 15, 16, 21)
+after id is 4355564
+game_length = 2
+
+child number 4 is win(table0)
+Action is (2, 15, 19, 20)
+after id is 4354742
+game_length = 6
+
+child number 5 is win(table0)
+Action is (2, 15, 19, 24)
+after id is 4354745
+game_length = 2
+
+child number 6 is win(table0)
+Action is (2, 15, 20, 15)
+after id is 4353724
+game_length = 2
+
+child number 7 is win(table0)
+Action is (2, 15, 20, 19)
+after id is 4354730
+game_length = 6
+
+child number 8 is win(table0)
+Action is (2, 15, 20, 21)
+after id is 4354732
+game_length = 2
+
+child number 9 is win(table0)
+Action is (2, 15, 20, 25)
+after id is 4354735
+game_length = 2
+
+child number 10 is win(table0)
+Action is (2, 17, 16, 15)
+after id is 4355130
+game_length = 2
+
+child number 11 is win(table0)
+Action is (2, 17, 16, 16)
+after id is 4361084
+game_length = 2
+
+child number 12 is win(table0)
+Action is (2, 17, 16, 17)
+after id is 4365456
+game_length = 2
+
+child number 13 is win(table0)
+Action is (2, 17, 16, 21)
+after id is 4366358
+game_length = 2
+
+child number 14 is win(table0)
+Action is (2, 17, 19, 20)
+after id is 4361095
+game_length = 6
+
+child number 15 is win(table0)
+Action is (2, 17, 19, 24)
+after id is 4361098
+game_length = 2
+
+child number 16 is win(table0)
+Action is (2, 17, 20, 15)
+after id is 4356930
+game_length = 2
+
+child number 17 is win(table0)
+Action is (2, 17, 20, 19)
+after id is 4361083
+game_length = 6
+
+child number 18 is win(table0)
+Action is (2, 17, 20, 21)
+after id is 4361085
+game_length = 2
+
+child number 19 is win(table0)
+Action is (2, 17, 20, 25)
+after id is 4361088
+game_length = 2
+
+child number 20 is win(table0)
+Action is (2, 21, 16, 15)
+after id is 4355564
+game_length = 2
+
+child number 21 is win(table0)
+Action is (2, 21, 16, 16)
+after id is 4361518
+game_length = 2
+
+child number 22 is win(table0)
+Action is (2, 21, 16, 17)
+after id is 4366358
+game_length = 2
+
+child number 23 is win(table0)
+Action is (2, 21, 16, 21)
+after id is 4371740
+game_length = 2
+
+child number 24 is win(table0)
+Action is (2, 21, 19, 20)
+after id is 4361723
+game_length = 6
+
+child number 25 is win(table0)
+Action is (2, 21, 19, 24)
+after id is 4361802
+game_length = 2
+
+child number 26 is win(table0)
+Action is (2, 21, 20, 15)
+after id is 4356982
+game_length = 2
+
+child number 27 is win(table0)
+Action is (2, 21, 20, 19)
+after id is 4361419
+game_length = 6
+
+child number 28 is win(table0)
+Action is (2, 21, 20, 21)
+after id is 4361538
+game_length = 2
+
+child number 29 is win(table0)
+Action is (2, 21, 20, 25)
+after id is 4361543
+game_length = 2
+
+child number 30 is win(table0)
+Action is (2, 22, 16, 15)
+after id is 4355566
+game_length = 2
+
+child number 31 is win(table0)
+Action is (2, 22, 16, 16)
+after id is 4361520
+game_length = 2
+
+child number 32 is win(table0)
+Action is (2, 22, 16, 17)
+after id is 4366360
+game_length = 2
+
+child number 33 is win(table0)
+Action is (2, 22, 16, 21)
+after id is 4371743
+game_length = 2
+
+child number 34 is win(table0)
+Action is (2, 22, 19, 20)
+after id is 4361725
+game_length = 6
+
+child number 35 is win(table0)
+Action is (2, 22, 19, 24)
+after id is 4361831
+game_length = 2
+
+child number 36 is win(table0)
+Action is (2, 22, 20, 15)
+after id is 4356984
+game_length = 2
+
+child number 37 is win(table0)
+Action is (2, 22, 20, 19)
+after id is 4361421
+game_length = 6
+
+child number 38 is win(table0)
+Action is (2, 22, 20, 21)
+after id is 4361550
+game_length = 2
+
+child number 39 is win(table0)
+Action is (2, 22, 20, 25)
+after id is 4361572
+game_length = 2
+
+child number 40 is win(table0)
+Action is (2, 24, 16, 15)
+after id is 4355568
+game_length = 2
+
+child number 41 is win(table0)
+Action is (2, 24, 16, 16)
+after id is 4361522
+game_length = 2
+
+child number 42 is win(table0)
+Action is (2, 24, 16, 17)
+after id is 4366362
+game_length = 2
+
+child number 43 is win(table0)
+Action is (2, 24, 16, 21)
+after id is 4371745
+game_length = 2
+
+child number 44 is win(table0)
+Action is (2, 24, 19, 20)
+after id is 4361727
+game_length = 6
+
+child number 45 is win(table0)
+Action is (2, 24, 19, 24)
+after id is 4361855
+game_length = 2
+
+child number 46 is win(table0)
+Action is (2, 24, 20, 15)
+after id is 4356986
+game_length = 2
+
+child number 47 is win(table0)
+Action is (2, 24, 20, 19)
+after id is 4361423
+game_length = 6
+
+child number 48 is win(table0)
+Action is (2, 24, 20, 21)
+after id is 4361552
+game_length = 2
+
+child number 49 is win(table0)
+Action is (2, 24, 20, 25)
+after id is 4361598
+game_length = 2
+
+child number 50 is win(table0)
+Action is (2, 25, 16, 15)
+after id is 4355570
+game_length = 2
+
+child number 51 is win(table0)
+Action is (2, 25, 16, 16)
+after id is 4361524
+game_length = 2
+
+child number 52 is win(table0)
+Action is (2, 25, 16, 17)
+after id is 4366364
+game_length = 2
+
+child number 53 is win(table0)
+Action is (2, 25, 16, 21)
+after id is 4371747
+game_length = 2
+
+child number 54 is win(table0)
+Action is (2, 25, 19, 20)
+after id is 4361729
+game_length = 6
+
+child number 55 is win(table0)
+Action is (2, 25, 19, 24)
+after id is 4361865
+game_length = 2
+
+child number 56 is win(table0)
+Action is (2, 25, 20, 15)
+after id is 4356988
+game_length = 2
+
+child number 57 is win(table0)
+Action is (2, 25, 20, 19)
+after id is 4361425
+game_length = 6
+
+child number 58 is win(table0)
+Action is (2, 25, 20, 21)
+after id is 4361554
+game_length = 2
+
+child number 59 is win(table0)
+Action is (2, 25, 20, 25)
+after id is 4361619
+game_length = 2
+
+child number 60 is win(table0)
+Action is (2, 26, 16, 15)
+after id is 4355572
+game_length = 2
+
+child number 61 is win(table0)
+Action is (2, 26, 16, 16)
+after id is 4361526
+game_length = 2
+
+child number 62 is win(table0)
+Action is (2, 26, 16, 17)
+after id is 4366366
+game_length = 2
+
+child number 63 is win(table0)
+Action is (2, 26, 16, 21)
+after id is 4371749
+game_length = 2
+
+child number 64 is win(table0)
+Action is (2, 26, 19, 20)
+after id is 4361731
+game_length = 6
+
+child number 65 is win(table0)
+Action is (2, 26, 19, 24)
+after id is 4361867
+game_length = 2
+
+child number 66 is win(table0)
+Action is (2, 26, 20, 15)
+after id is 4356990
+game_length = 2
+
+child number 67 is win(table0)
+Action is (2, 26, 20, 19)
+after id is 4361427
+game_length = 6
+
+child number 68 is win(table0)
+Action is (2, 26, 20, 21)
+after id is 4361556
+game_length = 2
+
+child number 69 is win(table0)
+Action is (2, 26, 20, 25)
+after id is 4361628
+game_length = 2
+
+child number 70 is win(table0)
+Action is (2, 27, 16, 15)
+after id is 4355574
+game_length = 2
+
+child number 71 is win(table0)
+Action is (2, 27, 16, 16)
+after id is 4361528
+game_length = 2
+
+child number 72 is win(table0)
+Action is (2, 27, 16, 17)
+after id is 4366368
+game_length = 2
+
+child number 73 is win(table0)
+Action is (2, 27, 16, 21)
+after id is 4371751
+game_length = 2
+
+child number 74 is win(table0)
+Action is (2, 27, 19, 20)
+after id is 4361733
+game_length = 6
+
+child number 75 is win(table0)
+Action is (2, 27, 19, 24)
+after id is 4361869
+game_length = 2
+
+child number 76 is win(table0)
+Action is (2, 27, 20, 15)
+after id is 4356992
+game_length = 2
+
+child number 77 is win(table0)
+Action is (2, 27, 20, 19)
+after id is 4361429
+game_length = 6
+
+child number 78 is win(table0)
+Action is (2, 27, 20, 21)
+after id is 4361558
+game_length = 2
+
+child number 79 is win(table0)
+Action is (2, 27, 20, 25)
+after id is 4361630
+game_length = 2
+
+child number 80 is win(table0)
+Action is (2, 29, 16, 15)
+after id is 4355576
+game_length = 2
+
+child number 81 is win(table0)
+Action is (2, 29, 16, 16)
+after id is 4361530
+game_length = 2
+
+child number 82 is win(table0)
+Action is (2, 29, 16, 17)
+after id is 4366370
+game_length = 2
+
+child number 83 is win(table0)
+Action is (2, 29, 16, 21)
+after id is 4371753
+game_length = 2
+
+child number 84 is win(table0)
+Action is (2, 29, 19, 20)
+after id is 4361735
+game_length = 6
+
+child number 85 is win(table0)
+Action is (2, 29, 19, 24)
+after id is 4361871
+game_length = 2
+
+child number 86 is win(table0)
+Action is (2, 29, 20, 15)
+after id is 4356994
+game_length = 2
+
+child number 87 is win(table0)
+Action is (2, 29, 20, 19)
+after id is 4361431
+game_length = 6
+
+child number 88 is win(table0)
+Action is (2, 29, 20, 21)
+after id is 4361560
+game_length = 2
+
+child number 89 is win(table0)
+Action is (2, 29, 20, 25)
+after id is 4361632
+game_length = 2
+
+child number 90 is win(table0)
+Action is (2, 30, 16, 15)
+after id is 4355578
+game_length = 2
+
+child number 91 is win(table0)
+Action is (2, 30, 16, 16)
+after id is 4361532
+game_length = 2
+
+child number 92 is win(table0)
+Action is (2, 30, 16, 17)
+after id is 4366372
+game_length = 2
+
+child number 93 is win(table0)
+Action is (2, 30, 16, 21)
+after id is 4371755
+game_length = 2
+
+child number 94 is win(table0)
+Action is (2, 30, 19, 20)
+after id is 4361737
+game_length = 6
+
+child number 95 is win(table0)
+Action is (2, 30, 19, 24)
+after id is 4361873
+game_length = 2
+
+child number 96 is win(table0)
+Action is (2, 30, 20, 15)
+after id is 4356996
+game_length = 2
+
+child number 97 is win(table0)
+Action is (2, 30, 20, 19)
+after id is 4361433
+game_length = 6
+
+child number 98 is win(table0)
+Action is (2, 30, 20, 21)
+after id is 4361562
+game_length = 2
+
+child number 99 is win(table0)
+Action is (2, 30, 20, 25)
+after id is 4361634
+game_length = 2
+
+child number 100 is win(table0)
+Action is (2, 31, 16, 15)
+after id is 4355580
+game_length = 2
+
+child number 101 is win(table0)
+Action is (2, 31, 16, 16)
+after id is 4361534
+game_length = 2
+
+child number 102 is win(table0)
+Action is (2, 31, 16, 17)
+after id is 4366374
+game_length = 2
+
+child number 103 is win(table0)
+Action is (2, 31, 16, 21)
+after id is 4371757
+game_length = 2
+
+child number 104 is win(table0)
+Action is (2, 31, 19, 20)
+after id is 4361739
+game_length = 6
+
+child number 105 is win(table0)
+Action is (2, 31, 19, 24)
+after id is 4361875
+game_length = 2
+
+child number 106 is win(table0)
+Action is (2, 31, 20, 15)
+after id is 4356998
+game_length = 2
+
+child number 107 is win(table0)
+Action is (2, 31, 20, 19)
+after id is 4361435
+game_length = 6
+
+child number 108 is win(table0)
+Action is (2, 31, 20, 21)
+after id is 4361564
+game_length = 2
+
+child number 109 is win(table0)
+Action is (2, 31, 20, 25)
+after id is 4361636
+game_length = 2
+
+child number 110 is win(table0)
+Action is (2, 32, 16, 15)
+after id is 4355582
+game_length = 2
+
+child number 111 is win(table0)
+Action is (2, 32, 16, 16)
+after id is 4361536
+game_length = 2
+
+child number 112 is win(table0)
+Action is (2, 32, 16, 17)
+after id is 4366376
+game_length = 2
+
+child number 113 is win(table0)
+Action is (2, 32, 16, 21)
+after id is 4371759
+game_length = 2
+
+child number 114 is win(table0)
+Action is (2, 32, 19, 20)
+after id is 4361741
+game_length = 6
+
+child number 115 is win(table0)
+Action is (2, 32, 19, 24)
+after id is 4361877
+game_length = 2
+
+child number 116 is win(table0)
+Action is (2, 32, 20, 15)
+after id is 4357000
+game_length = 2
+
+child number 117 is win(table0)
+Action is (2, 32, 20, 19)
+after id is 4361437
+game_length = 6
+
+child number 118 is win(table0)
+Action is (2, 32, 20, 21)
+after id is 4361566
+game_length = 2
+
+child number 119 is win(table0)
+Action is (2, 32, 20, 25)
+after id is 4361638
+game_length = 2
+
+result is win
+win game length is 6

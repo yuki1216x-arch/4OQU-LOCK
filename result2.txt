@@ -1,0 +1,68 @@
+root->num = 32
+root->lengthmax = 40
+root->lengthmin = 33
+root->lengthave = 36.5
+sumad = 53
+read_file_name: data/db/white_table_0.bin
+aaaa
+header[0]: 0
+header[1]: 16
+header[2]: 32
+header[3]: 0
+header[4]: 0
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  9
+before nlose  =  0
+before nnotlose = 0
+before nnotwin = 0
+before nunknown  =  23
+last unknown  =  27
+number = 0, id = 24
+WBBBBBBW
+UUUUUUUB
+   _______________
+   | .. .. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   ^^^^^^^^^^^^^^^
+number = 1, id = 26
+WBBBBBWB
+UUUUUUUB
+   _______________
+   | .. .. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   ^^^^^^^^^^^^^^^
+number = 2, id = 28
+WBBBBWBB
+UUUUUUUB
+   _______________
+   | .. .. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   ^^^^^^^^^^^^^^^
+number = 3, id = 29
+WBBBBWBB
+UUUUUUUW
+   _______________
+   | .. .. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   ^^^^^^^^^^^^^^^
+number = 4, id = 31
+WBBBWBBB
+UUUUUUUW
+   _______________
+   | .. .. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   ^^^^^^^^^^^^^^^
+total count = 5

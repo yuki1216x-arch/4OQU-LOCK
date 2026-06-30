@@ -7,15 +7,14 @@ using std::unique_ptr;
 using std::make_unique;
 using std::to_string;
 
-
 constexpr unsigned long long int placement_count[2][17] {
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-    144799200ULL, 61850880ULL, 17357760ULL, 4264960ULL,
+    144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
     666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
-    144799200ULL, 46388160ULL, 17357760ULL, 2932160ULL,
+    144799200ULL, 30925440ULL, 11571840ULL, 2932160ULL,
     666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
 };
 
@@ -33,15 +32,19 @@ int main(int argc, char* argv[]) {
     int division = atoi(argv[3]);
     string base_filename = argv[4];
     string read_filename_str = "data/db/" + base_filename + "_" + to_string(iteration) + ".bin";
-    Table new_table(16 - iteration, read_filename_str.c_str(), argv[5 + division], placement_count[vision][16 - iteration]);
+
+    size_t bits_per_entry;
+    if(iteration > 12) bits_per_entry = 4;
+    else bits_per_entry = 8;
+    Table new_table(16 - iteration, read_filename_str.c_str(), bits_per_entry, placement_count[vision][16 - iteration]);
     string read_filename_str_division[4];
     for (int i = 0; i < division; i++) { read_filename_str_division[i] = "data/db/" + string(argv[5 + i]); }
     unique_ptr<Table> old_table[division];
     for(int i = 0; i < division; i++) {
-      old_table[i] = make_unique<Table>(16 - iteration, read_filename_str_division[i].c_str(), argv[6 + division + i], placement_count[vision][16 - iteration]);
+      old_table[i] = make_unique<Table>(16 - iteration, read_filename_str_division[i].c_str(), bits_per_entry, placement_count[vision][16 - iteration]);
     }
     for(unsigned long long int i = 0; i < placement_count[vision][16 - iteration]; i++) {
-        int val = old_table[i % division]->get(i);
+        int val = old_table[i % division]->get_value(i);
 	int game_length = old_table[i % division]->get_game_length(i);
         // if(val != 0 && old_table[1 - i % division]->get(i) != 0) {
         //     cout << "division error1" << endl;
@@ -80,7 +83,7 @@ int main(int argc, char* argv[]) {
         }
     }
     {   
-      OutTable out_table(16 - iteration, read_filename_str.c_str(), placement_count[vision][16 - iteration]);
+      OutTable out_table(16 - iteration, read_filename_str.c_str(), placement_count[vision][16 - iteration], bits_per_entry);
       for (unsigned long long int i = 0; i < placement_count[vision][16 - iteration]; i++) { //haiti
 	out_table.write(new_table.get(i));
       }

@@ -106,3 +106,12 @@ Table::Table(int iter, const char* read_file_name, const char* write_file_name, 
   }
   read_file.close();
 }
+
+/*void OutTable::write(unsigned int entry) noexcept {    
+  // put bites to m_buffer
+  m_buffer |= static_cast<unsigned char>(entry << (m_num_keep));
+  if (++m_num_keep < 8) return;
+  m_ofs.write((char*)&m_buffer, 1U);
+  m_num_keep = 0;
+  m_buffer = 0U;
+}*/

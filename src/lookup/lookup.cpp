@@ -39,11 +39,11 @@ std::vector<string> split(const string text, const char delimiter='/') {
 constexpr unsigned long long int placement_count[2][17] {
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-    144799200ULL, 61850880ULL, 17357760ULL, 4264960ULL,
+    144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
     666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
-    144799200ULL, 46388160ULL, 17357760ULL, 2932160ULL,
+    144799200ULL, 30925440ULL, 11571840ULL, 2932160ULL,
     666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
 };
 
@@ -88,8 +88,7 @@ unsigned long long int getzddnum(const ZDD& zdd, string fen_str) noexcept {
 	assert(i >= 1 && i <= 4);
 	assert(array_objid_iter >= 8 && array_objid_iter <= 23);
 	if (cols[i][j] != tbl_objid2locinfo[1].cube[0] && cols[i][j] != tbl_objid2locinfo[2].cube[0]) {
-	  int check = cols[i][j] - '0';
-	  assert(check <= 4 - array_objid_iter % 4);
+	  assert(cols[i][j] - '0' <= 4 - array_objid_iter % 4);
 	  for (int k = cols[i][j] - '0'; k > 0; k--) {
 	    array_objid[array_objid_iter] = 0;
 	    array_objid_iter++;

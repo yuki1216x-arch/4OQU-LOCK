@@ -5,7 +5,6 @@ class InTable {
 private:
   unsigned char m_buffer;
   int m_num_keep;
-  int m_iteration;
   fstream m_ofs;
 
 public:
@@ -20,20 +19,22 @@ public:
     m_ofs.close();  //ファイルを閉じる
   }
   
-  unsigned int read() noexcept {
-    unsigned int val;
-    if(m_iteration >= 12) {
-      if(m_num_keep == 0) {
-	m_ofs.read((char*)&m_buffer, 1U);  //1byteリード 
-	m_num_keep = 2;
+  unsigned int read(size_t bits_per_entry) noexcept {
+    assert(8 % bits_per_entry == 0);
+    if(m_num_keep == 0) {
+      if(!m_ofs.read((char*)&m_buffer, 1U)) {  //1byteリード
+	std::cerr << "Error: failed to read byte from file\n";
+	std::terminate();
       }
-      val = m_buffer & 15U;   //今のbuffer(アドレス)の1111(15U)と＆を取って、値を読み取る(val)
-      m_buffer =  m_buffer >> 4U; //4bit分アドレスを進める
-      m_num_keep--;
-    } else {
-      m_ofs.read((char*)&m_buffer, 1U);
-      val = m_buffer & 255U;  //今のbuffer(アドレス)の11111111(255U)と＆を取って、値を読み取る(val)
+      m_num_keep = 8 / bits_per_entry;
     }
+
+    unsigned int mask = (1U << bits_per_entry) - 1U;
+    unsigned int val = static_cast<unsigned int>(m_buffer) & mask;   //今のbuffer(アドレス)の1111(15U)と＆を取って、値を読み取る(val)
+    
+    m_buffer >>=  bits_per_entry; //4bit分アドレスを進める
+    m_num_keep--;
+
     return val;
   }
 };
@@ -60,7 +61,6 @@ InTable::InTable(int iter, const string &s, size_t num) noexcept : m_buffer(0), 
     cerr << "Header Error" << endl;
     terminate();
   }
-  m_iteration = 16 - iter;
   //配置数の確認(header[2-7])
   if(num_check != num) {
     cerr << "Size Error" << endl;
@@ -68,27 +68,28 @@ InTable::InTable(int iter, const string &s, size_t num) noexcept : m_buffer(0), 
   }
 }
 
-Table::Table(int iter, const char* read_file_name, const char* write_file_name, unsigned long long int placement_size) noexcept : m_iteration(16 - iter) {
-  if(m_iteration >= 13) {
-    m_table_size = (placement_size + 15ULL) / 16ULL;
-    m_bits_per_entry = 4;
-    m_entries_per_word = 16;
+Table::Table(int iter, const char* read_file_name, size_t bits_per_entry, unsigned long long int placement_size) noexcept : m_bits_per_entry(bits_per_entry), m_iteration(16 - iter) {
+  m_entries_per_word = 64 / m_bits_per_entry;
+  m_table_size = (placement_size + m_entries_per_word - 1ULL) / m_entries_per_word;
+
+  if(m_bits_per_entry == 1) {
+    m_value_bits = 1;
+    m_game_length_bits = 0;
+  } else if(m_bits_per_entry == 4) {
     m_value_bits = 2;
     m_game_length_bits = 2;
   } else {
-    m_table_size = (placement_size + 7ULL) / 8ULL;
-    m_bits_per_entry = 8;
-    m_entries_per_word = 8;
+    assert(m_bits_per_entry == 8);
     m_value_bits = 3;
     m_game_length_bits = 5;
   }
+
+  assert(read_file_name && read_file_name[0] != '\0');
+  cout << "read_file_name: " << read_file_name << endl;
   
   assert(iter >= 0 && iter <= 16); //iter >= 0 && iter <= 15
   m_table = new uint64_t [m_table_size];
   
-  assert(read_file_name && read_file_name[0] != '\0');
-  assert(write_file_name && write_file_name[0] != '\0');
-  cout << "read_file_name: " << read_file_name << endl;
   fstream read_file (read_file_name, fstream::in | fstream::binary);
   if(!read_file) {    //readファイルがなかった場合
     cout << "no file" << endl;
@@ -102,37 +103,56 @@ Table::Table(int iter, const char* read_file_name, const char* write_file_name, 
       InTable in_table(iter, read_file_name, placement_size); //ここのInTableでエラー
       cout << "bbbb" << endl;
       for(unsigned long long int i = 0; i < placement_size; i++) {
-	unsigned int entry = in_table.read();   //in_Tableからidを一つずつ読み込んでいき、その値をvに代入
+	unsigned int entry = in_table.read(m_bits_per_entry);   //in_Tableからidを一つずつ読み込んでいき、その値をvに代入
 	unsigned int value = (unsigned int)((1U << m_value_bits) - 1U) & entry;
-	unsigned int game_length = (unsigned int)((1U << m_game_length_bits) - 1U) & (entry >> m_value_bits);
+	// unsigned int game_length = (unsigned int)((1U << m_game_length_bits) - 1U) & (entry >> m_value_bits);
 	
 	if(value == v_win) {
 	  nwin++;
 	}else if(value == v_unknown) {
-	  assert(game_length == 0ULL);
 	  nunknown++;
 	  lunknown = i;
 	} else if(value == v_draw) {
-	  assert(game_length == 0ULL);
 	  ndraw++;
 	} else if(value == v_notlose) {
-	  assert(game_length == 0ULL);
 	  nnotlose++;
 	} else if(value == v_notwin) {
-	  assert(game_length == 0ULL);
 	  nnotwin++;
 	} else {
 	  nlose++;
 	} 
 	set(i, entry);
       }
-      cout << "before nwin  =  " << nwin << endl;
-      cout << "before nlose  =  " << nlose << endl;
-      cout << "before nnotlose = " << nnotlose << endl;
-      cout << "before nnotwin = " << nnotwin << endl;
-      cout << "before nunknown  =  " << nunknown << endl;
-      cout << "last unknown  =  " << lunknown << endl;
+
+      if(m_bits_per_entry == 1) {
+	cout << "before nreachable  =  " << nwin << endl;
+	cout << "before nunreachable  =  " << nunknown << endl;
+      } else {
+	assert(m_bits_per_entry == 4 || m_bits_per_entry == 8);
+	cout << "before nwin  =  " << nwin << endl;
+	cout << "before nlose  =  " << nlose << endl;
+	cout << "before nnotlose = " << nnotlose << endl;
+	cout << "before nnotwin = " << nnotwin << endl;
+	cout << "before nunknown  =  " << nunknown << endl;
+	cout << "last unknown  =  " << lunknown << endl;
+      }
     }
   }
   read_file.close();
 }
+
+/*void OutTable::write(unsigned int entry) noexcept {    
+  // put bites to m_buffer
+  if(m_iteration >= 12) {
+    m_buffer |= static_cast<unsigned char>(entry << (m_num_keep * 4));
+    if (++m_num_keep < 2) return;
+    m_ofs.write((char*)&m_buffer, 1U);
+    m_num_keep = 0;
+    m_buffer = 0U;
+  } else {
+    m_buffer |= static_cast<unsigned char>(entry);
+    m_ofs.write((char*)&m_buffer, 1U);
+    m_buffer = 0U;
+  }
+}
+*/

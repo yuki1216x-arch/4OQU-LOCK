@@ -18,29 +18,30 @@ struct Action {
 
 class Posi {
 private:
-    LocInfo m_locs_info[46];
+  LocInfo m_locs_info[46];
+  int m_already[16];
 public:
-    Posi() noexcept;
-    Posi(unsigned long long int x, const ZDD& zdd) noexcept;
-    void make_posi(unsigned long long int x, const ZDD& zdd) noexcept;
-    void make_posi_n(unsigned char zdd_code[12][46], int n) noexcept;
-    void make_posi_opponent() noexcept;
-    void make_posi_myself() noexcept;
-    void print() const noexcept;
-    int compute_actions(Action actions[1000], int vision, int turn) noexcept;
-    unsigned long long int getzddnum(const ZDD& zdd) const noexcept;
-    int getobjnum(const LocInfo& a) noexcept;
-    int getunknowninfo(unsigned char zdd_code[12][46], int vision, int turn) noexcept;
-    bool is_opp_uninfo(unsigned char board_belief[12][46], int vision, int iteration) noexcept;
-    void setunknown(int a) noexcept;
-    bool exist_action() const noexcept;
-    int FourCheck(int x, int y, int z) noexcept;
-    int BoardCheck(int a, int b) noexcept;
-    bool TegomaCheck() noexcept;
-    bool check_ok() noexcept;
-    int make_action(const Action & action, int vision, int turn) noexcept;
-    //void unmake_action(const Action & action) noexcept;
-    int TerminalTest(int vision, int turn) noexcept;
+  Posi() noexcept;
+  Posi(unsigned long long int x, const ZDD& zdd) noexcept;
+  void make_posi(unsigned long long int x, const ZDD& zdd) noexcept;
+  void make_posi_n(unsigned char zdd_code[12][46], int n) noexcept;
+  void make_posi_opponent() noexcept;
+  void make_posi_myself() noexcept;
+  void print() const noexcept;
+  int compute_actions(Action actions[1000], int vision, int turn) noexcept;
+  unsigned long long int getzddnum(const ZDD& zdd) const noexcept;
+  int getobjnum(const LocInfo& a) noexcept;
+  int getunknowninfo(unsigned char zdd_code[12][46], int vision, int turn) noexcept;
+  bool is_opp_uninfo(unsigned char board_belief[12][46], int vision, int iteration) noexcept;
+  void setunknown(int a) noexcept;
+  bool exist_action() const noexcept;
+  int FourCheck(int x, int y, int z) noexcept;
+  int BoardCheck(int a, int b) noexcept;
+  bool TegomaCheck() noexcept;
+  bool check_ok() noexcept;
+  int make_action(const Action & action, int vision, int turn) noexcept;
+  //void unmake_action(const Action & action) noexcept;
+  int TerminalTest(int vision, int turn) noexcept;
 };
 
 #endif

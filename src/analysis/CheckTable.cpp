@@ -14,11 +14,11 @@ using std::chrono::high_resolution_clock;
 constexpr unsigned long long int placement_count[2][17] {
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-    144799200ULL, 61850880ULL, 17357760ULL, 4264960ULL,
+    144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
     666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
-    144799200ULL, 46388160ULL, 17357760ULL, 2932160ULL,
+    144799200ULL, 30925440ULL, 11571840ULL, 2932160ULL,
     666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
 };
 
@@ -28,7 +28,11 @@ int main(int argc, char *argv[]) {
     int vision = atoi(argv[2]); // 0: white's perspective, 1: black's perspective
     string read_filename_str = "data/db/" + string(argv[3]);
     unique_ptr<ZDD> zdd_check = make_unique<ZDD>(vision, iteration);
-    Table check_table(16 - iteration, read_filename_str.c_str(), argv[4], placement_count[vision][16 - iteration]);   // [2]: input file, [4]: output file; parent table
+    
+    size_t bits_per_entry;
+    if(iteration > 12) bits_per_entry = 4;
+    else bits_per_entry = 8;
+    Table check_table(16 - iteration, read_filename_str.c_str(), bits_per_entry, placement_count[vision][16 - iteration]);   // [2]: input file, [4]: output file; parent table
     Posi p;
 
     // for quick validation

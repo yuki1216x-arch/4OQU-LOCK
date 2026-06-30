@@ -342,8 +342,8 @@ bool Node_base::IsNextLeaf0(int depth, int x, int nmove) const noexcept {
       // Invalid: exceeding the number of black pieces in set3
       if(m_loc_stateid == 2 && m_nb_set3 >= nw_set12_min()) return true;
       // Invalid: more white/black pieces on the board than used by the player
-      if(m_loc_stateid == 1 && m_nw_board - (nw_set12_min() - m_nw_set1) - (nw_set12_min() - m_nw_set2) - nb_set12_min() >= nb_set12_min()) return true;
-      if(m_loc_stateid == 2 && m_nb_board - (nb_set12_min() - m_nb_set1) - (nb_set12_min() - m_nb_set2) - nw_set12_min() >= nw_set12_min()) return true;
+      if(m_loc_stateid == 1 && m_nw_board - (nw_set12_min() - m_nw_set1) - (nw_set12_min() - m_nw_set2) >= nb_set12_min()) return true;
+      if(m_loc_stateid == 2 && m_nb_board - (nb_set12_min() - m_nb_set1) - (nb_set12_min() - m_nb_set2) >= nw_set12_min()) return true;
     }
   } else { // set4
     if(x == 1) {

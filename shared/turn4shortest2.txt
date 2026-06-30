@@ -1,0 +1,308 @@
+root->num = 666080
+root->lengthmax = 47
+root->lengthmin = 32
+root->lengthave = 40.7889
+sumad = 1315
+root->num = 2932160
+root->lengthmax = 48
+root->lengthmin = 32
+root->lengthave = 42.1529
+sumad = 1789
+root->num = 2932160
+root->lengthmax = 46
+root->lengthmin = 32
+root->lengthave = 41.4119
+sumad = 1799
+read_file_name: data/db/white_table_4.bin
+aaaa
+header[0]: 0
+header[1]: 12
+header[2]: 224
+header[3]: 41
+header[4]: 10
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  382250
+before nlose  =  10328
+before nnotlose = 13418
+before nnotwin = 160
+before nunknown  =  259924
+last unknown  =  666075
+read_file_name: data/db/white_table_5.bin
+aaaa
+header[0]: 0
+header[1]: 11
+header[2]: 192
+header[3]: 189
+header[4]: 44
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  358100
+before nlose  =  322768
+before nnotlose = 32324
+before nnotwin = 18280
+before nunknown  =  2200688
+last unknown  =  2932159
+read_file_name: data/db/black_table_5.bin
+aaaa
+header[0]: 0
+header[1]: 11
+header[2]: 192
+header[3]: 189
+header[4]: 44
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  1421020
+before nlose  =  86384
+before nnotlose = 60272
+before nnotwin = 9984
+before nunknown  =  1354500
+last unknown  =  2932159
+this configuration is win
+ID of this configuration: 152382
+..BBWBBB
+UUUUUW..
+   _______________
+   | BW .. .. .. |
+   | .. B. .. .. |
+   | W. .. .. .. |
+   | .. .. .. .. |
+   ^^^^^^^^^^^^^^^
+child number 1 is win(table0)
+Action is (40, 15, 20, 19)
+after id is 600673
+game_length = 9
+
+child number 2 is win(table0)
+Action is (40, 15, 20, 20)
+after id is 600708
+game_length = 9
+
+child number 3 is win(table0)
+Action is (40, 15, 20, 21)
+after id is 600740
+game_length = 9
+
+child number 4 is win(table0)
+Action is (40, 15, 20, 25)
+after id is 600803
+game_length = 9
+
+child number 5 is win(table0)
+Action is (40, 15, 24, 19)
+after id is 600681
+game_length = 11
+
+child number 10 is win(table0)
+Action is (40, 16, 20, 20)
+after id is 601124
+game_length = 9
+
+child number 13 is win(table0)
+Action is (40, 16, 24, 19)
+after id is 601097
+game_length = 9
+
+child number 14 is win(table0)
+Action is (40, 16, 24, 25)
+after id is 601125
+game_length = 9
+
+child number 15 is win(table0)
+Action is (40, 16, 24, 29)
+after id is 601128
+game_length = 9
+
+child number 16 is win(table0)
+Action is (40, 17, 20, 15)
+after id is 600500
+game_length = 11
+
+child number 17 is win(table0)
+Action is (40, 17, 20, 19)
+after id is 601449
+game_length = 11
+
+child number 18 is win(table0)
+Action is (40, 17, 20, 20)
+after id is 601484
+game_length = 9
+
+child number 19 is win(table0)
+Action is (40, 17, 20, 21)
+after id is 601516
+game_length = 9
+
+child number 23 is win(table0)
+Action is (40, 17, 24, 29)
+after id is 601488
+game_length = 11
+
+child number 24 is win(table0)
+Action is (40, 19, 20, 15)
+after id is 600512
+game_length = 7
+
+child number 27 is win(table0)
+Action is (40, 19, 20, 21)
+after id is 601824
+game_length = 7
+
+child number 28 is win(table0)
+Action is (40, 19, 20, 25)
+after id is 601887
+game_length = 11
+
+child number 29 is win(table0)
+Action is (40, 19, 24, 19)
+after id is 601699
+game_length = 7
+
+child number 32 is win(table0)
+Action is (40, 21, 20, 15)
+after id is 600533
+game_length = 9
+
+child number 33 is win(table0)
+Action is (40, 21, 20, 19)
+after id is 601734
+game_length = 11
+
+child number 34 is win(table0)
+Action is (40, 21, 20, 20)
+after id is 602027
+game_length = 9
+
+child number 36 is win(table0)
+Action is (40, 21, 20, 25)
+after id is 602363
+game_length = 11
+
+child number 40 is win(table0)
+Action is (40, 22, 20, 15)
+after id is 600542
+game_length = 9
+
+child number 42 is win(table0)
+Action is (40, 22, 20, 20)
+after id is 602036
+game_length = 9
+
+child number 45 is win(table0)
+Action is (40, 22, 24, 19)
+after id is 601791
+game_length = 11
+
+child number 47 is win(table0)
+Action is (40, 22, 24, 29)
+after id is 602040
+game_length = 9
+
+child number 54 is win(table0)
+Action is (40, 25, 24, 25)
+after id is 602052
+game_length = 11
+
+child number 56 is win(table0)
+Action is (40, 26, 20, 15)
+after id is 600552
+game_length = 9
+
+child number 58 is win(table0)
+Action is (40, 26, 20, 20)
+after id is 602046
+game_length = 9
+
+child number 61 is win(table0)
+Action is (40, 26, 24, 19)
+after id is 601794
+game_length = 11
+
+child number 63 is win(table0)
+Action is (40, 26, 24, 29)
+after id is 602061
+game_length = 9
+
+child number 64 is win(table0)
+Action is (40, 27, 20, 15)
+after id is 600553
+game_length = 9
+
+child number 66 is win(table0)
+Action is (40, 27, 20, 20)
+after id is 602047
+game_length = 9
+
+child number 67 is win(table0)
+Action is (40, 27, 20, 21)
+after id is 602293
+game_length = 9
+
+child number 71 is win(table0)
+Action is (40, 27, 24, 29)
+after id is 602066
+game_length = 9
+
+child number 80 is win(table0)
+Action is (40, 30, 20, 15)
+after id is 600555
+game_length = 9
+
+child number 82 is win(table0)
+Action is (40, 30, 20, 20)
+after id is 602049
+game_length = 9
+
+child number 83 is win(table0)
+Action is (40, 30, 20, 21)
+after id is 602295
+game_length = 9
+
+child number 88 is win(table0)
+Action is (40, 31, 20, 15)
+after id is 600556
+game_length = 9
+
+child number 90 is win(table0)
+Action is (40, 31, 20, 20)
+after id is 602050
+game_length = 9
+
+child number 91 is win(table0)
+Action is (40, 31, 20, 21)
+after id is 602296
+game_length = 9
+
+child number 95 is win(table0)
+Action is (40, 31, 24, 29)
+after id is 602072
+game_length = 9
+
+child number 96 is win(table0)
+Action is (40, 32, 20, 15)
+after id is 600557
+game_length = 9
+
+child number 98 is win(table0)
+Action is (40, 32, 20, 20)
+after id is 602051
+game_length = 9
+
+child number 99 is win(table0)
+Action is (40, 32, 20, 21)
+after id is 602297
+game_length = 9
+
+child number 103 is win(table0)
+Action is (40, 32, 24, 29)
+after id is 602073
+game_length = 9
+
+result is win
+win game length is 7

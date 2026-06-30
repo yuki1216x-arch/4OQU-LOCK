@@ -1,0 +1,283 @@
+root->num = 11571840
+root->lengthmax = 51
+root->lengthmin = 32
+root->lengthave = 43.6984
+sumad = 2425
+root->num = 61850880
+root->lengthmax = 53
+root->lengthmin = 32
+root->lengthave = 45.3654
+sumad = 2501
+root->num = 30925440
+root->lengthmax = 50
+root->lengthmin = 32
+root->lengthave = 44.3172
+sumad = 1548
+read_file_name: data/db/white_table_6.bin
+aaaa
+header[0]: 0
+header[1]: 10
+header[2]: 128
+header[3]: 146
+header[4]: 176
+header[5]: 0
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  6863300
+before nlose  =  246004
+before nnotlose = 245798
+before nnotwin = 8116
+before nunknown  =  4208622
+last unknown  =  11571839
+read_file_name: data/db/white_table_7.bin
+aaaa
+header[0]: 0
+header[1]: 9
+header[2]: 0
+header[3]: 197
+header[4]: 175
+header[5]: 3
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  11938340
+before nlose  =  24679460
+before nnotlose = 812092
+before nnotwin = 573568
+before nunknown  =  23751124
+last unknown  =  61850871
+read_file_name: data/db/black_table_7.bin
+aaaa
+header[0]: 0
+header[1]: 9
+header[2]: 128
+header[3]: 226
+header[4]: 215
+header[5]: 1
+header[6]: 0
+header[7]: 0
+bbbb
+before nwin  =  15700744
+before nlose  =  2757692
+before nnotlose = 561628
+before nnotwin = 272952
+before nunknown  =  11632424
+last unknown  =  30925439
+this configuration is win
+ID of this configuration: 4354742
+...BWBBB
+UUUUW...
+   _______________
+   | BW B. B. .. |
+   | .. WW .. .. |
+   | .. .. .. .. |
+   | .. .. .. .. |
+   ^^^^^^^^^^^^^^^
+child number 1 is win(table0)
+Action is (41, 17, 15, 16)
+after id is 23347009
+game_length = 7
+
+child number 2 is win(table0)
+Action is (41, 17, 16, 15)
+after id is 23292617
+game_length = 9
+
+child number 4 is win(table0)
+Action is (41, 17, 16, 21)
+after id is 23309375
+game_length = 9
+
+child number 5 is win(table0)
+Action is (41, 19, 15, 15)
+after id is 23304211
+game_length = 5
+
+child number 6 is win(table0)
+Action is (41, 19, 15, 16)
+after id is 23347163
+game_length = 5
+
+child number 7 is win(table0)
+Action is (41, 19, 16, 15)
+after id is 23292771
+game_length = 5
+
+child number 8 is win(table0)
+Action is (41, 19, 16, 17)
+after id is 23308191
+game_length = 5
+
+child number 9 is win(table0)
+Action is (41, 19, 16, 21)
+after id is 23312103
+game_length = 5
+
+child number 11 is win(table0)
+Action is (41, 21, 15, 16)
+after id is 23347295
+game_length = 7
+
+child number 12 is win(table0)
+Action is (41, 21, 16, 15)
+after id is 23292903
+game_length = 9
+
+child number 13 is win(table0)
+Action is (41, 21, 16, 17)
+after id is 23308323
+game_length = 9
+
+child number 15 is win(table0)
+Action is (41, 22, 15, 15)
+after id is 23304345
+game_length = 9
+
+child number 16 is win(table0)
+Action is (41, 22, 15, 16)
+after id is 23347297
+game_length = 7
+
+child number 17 is win(table0)
+Action is (41, 22, 16, 15)
+after id is 23292905
+game_length = 9
+
+child number 20 is win(table0)
+Action is (41, 24, 15, 15)
+after id is 23304347
+game_length = 7
+
+child number 21 is win(table0)
+Action is (41, 24, 15, 16)
+after id is 23347299
+game_length = 7
+
+child number 22 is win(table0)
+Action is (41, 24, 16, 15)
+after id is 23292907
+game_length = 7
+
+child number 23 is win(table0)
+Action is (41, 24, 16, 17)
+after id is 23308327
+game_length = 7
+
+child number 24 is win(table0)
+Action is (41, 24, 16, 21)
+after id is 23313939
+game_length = 7
+
+child number 25 is win(table0)
+Action is (41, 25, 15, 15)
+after id is 23304349
+game_length = 7
+
+child number 26 is win(table0)
+Action is (41, 25, 15, 16)
+after id is 23347301
+game_length = 7
+
+child number 27 is win(table0)
+Action is (41, 25, 16, 15)
+after id is 23292909
+game_length = 7
+
+child number 28 is win(table0)
+Action is (41, 25, 16, 17)
+after id is 23308329
+game_length = 7
+
+child number 29 is win(table0)
+Action is (41, 25, 16, 21)
+after id is 23313941
+game_length = 9
+
+child number 30 is win(table0)
+Action is (41, 26, 15, 15)
+after id is 23304351
+game_length = 9
+
+child number 31 is win(table0)
+Action is (41, 26, 15, 16)
+after id is 23347303
+game_length = 7
+
+child number 32 is win(table0)
+Action is (41, 26, 16, 15)
+after id is 23292911
+game_length = 9
+
+child number 36 is win(table0)
+Action is (41, 27, 15, 16)
+after id is 23347305
+game_length = 7
+
+child number 37 is win(table0)
+Action is (41, 27, 16, 15)
+after id is 23292913
+game_length = 9
+
+child number 40 is win(table0)
+Action is (41, 29, 15, 15)
+after id is 23304355
+game_length = 7
+
+child number 41 is win(table0)
+Action is (41, 29, 15, 16)
+after id is 23347307
+game_length = 7
+
+child number 42 is win(table0)
+Action is (41, 29, 16, 15)
+after id is 23292915
+game_length = 7
+
+child number 43 is win(table0)
+Action is (41, 29, 16, 17)
+after id is 23308335
+game_length = 7
+
+child number 44 is win(table0)
+Action is (41, 29, 16, 21)
+after id is 23313947
+game_length = 9
+
+child number 45 is win(table0)
+Action is (41, 30, 15, 15)
+after id is 23304357
+game_length = 9
+
+child number 46 is win(table0)
+Action is (41, 30, 15, 16)
+after id is 23347309
+game_length = 7
+
+child number 47 is win(table0)
+Action is (41, 30, 16, 15)
+after id is 23292917
+game_length = 9
+
+child number 51 is win(table0)
+Action is (41, 31, 15, 16)
+after id is 23347311
+game_length = 7
+
+child number 52 is win(table0)
+Action is (41, 31, 16, 15)
+after id is 23292919
+game_length = 9
+
+child number 56 is win(table0)
+Action is (41, 32, 15, 16)
+after id is 23347313
+game_length = 7
+
+child number 57 is win(table0)
+Action is (41, 32, 16, 15)
+after id is 23292921
+game_length = 9
+
+result is win
+win game length is 5

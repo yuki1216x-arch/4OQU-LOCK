@@ -34,7 +34,7 @@ private:
   }
 
 public:
-  Table(int iter, const char* read_file_name, const char* write_file_name, unsigned long long int placement_size) noexcept;
+  Table(int iter, const char* read_file_name, size_t bits_per_entry, unsigned long long int placement_size) noexcept;
   ~Table() noexcept { delete [] m_table; }
   
   //引数で与えたid番のw,l,unkを得る
@@ -66,11 +66,11 @@ private:
   unsigned char m_buffer;
   int m_num_keep;
   fstream m_ofs;
-  int m_iteration;
+  size_t m_bits_per_entry;
 
 public:
   OutTable() = delete;
-  OutTable(int iter, const string &s, size_t num) noexcept : m_buffer(0), m_num_keep(0), m_ofs(s, fstream::out | fstream::binary | fstream::trunc), m_iteration(16 - iter) {
+  OutTable(int iter, const string &s, size_t num, size_t bits_per_entry) noexcept : m_buffer(0), m_num_keep(0), m_ofs(s, fstream::out | fstream::binary | fstream::trunc), m_bits_per_entry(bits_per_entry) {
     assert(iter >= 0 && iter <= 16); //iter >= 0 && iter <= 15
     assert(s.size() > 0 && s.size() < 255);
     cout << "write" << endl;
@@ -95,20 +95,13 @@ public:
     m_ofs.close();
   }
 
-    //表(4bit)の各番地に書き込んでいく(bitesがw,l,unk)
-  void write(unsigned int entry) noexcept {    
-    // put bites to m_buffer
-    if(m_iteration >= 12) {
-      m_buffer |= static_cast<unsigned char>(entry << (m_num_keep * 4));
-      if (++m_num_keep < 2) return;
-      m_ofs.write((char*)&m_buffer, 1U);
-      m_num_keep = 0;
-      m_buffer = 0U;
-    } else {
-      m_buffer |= static_cast<unsigned char>(entry);
-      m_ofs.write((char*)&m_buffer, 1U);
-      m_buffer = 0U;
-    }
+  //表(4bit)の各番地に書き込んでいく(bitesがw,l,unk)
+  void write(unsigned int entry) noexcept {
+    m_buffer |= static_cast<unsigned char>(entry << (m_num_keep * m_bits_per_entry));
+    if(++m_num_keep < static_cast<int>(8 / m_bits_per_entry)) return;
+    m_ofs.write((char*)&m_buffer, 1U);
+    m_num_keep = 0;
+    m_buffer = 0U;
   }
 
   void flush() noexcept {
