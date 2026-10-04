@@ -925,3 +925,35 @@ int Posi::make_action(const Action & action, int vision, int turn) noexcept {
 //     Posi::make_action({action.loc3, action.loc2, action.loc1, action.po}, -1); //action.loc1, action.po, action.loc3, action.loc2
 //     //assert(check_ok());
 // }
+
+void Posi::count_locked_pieces(
+			       int& white_count,
+			       int& black_count
+			       ) const noexcept
+{
+  white_count = 0;
+  black_count = 0;
+
+  for(int row = 0; row < 4; row++) {
+    for(int col = 0; col < 4; col++) {
+
+      const int loc = 14 + 5 * row + col;
+
+      // cube[1] != '.' means that the lower piece is locked.
+      if(m_locs_info[loc].cube[1] == '.') {
+	continue;
+      }
+
+      // Count the lower piece (cube[0]).
+      if(m_locs_info[loc].cube[0] == 'W') {
+	white_count++;
+      }
+      else if(m_locs_info[loc].cube[0] == 'B') {
+	black_count++;
+      }
+      else {
+	assert(false);
+      }
+    }
+  }
+}

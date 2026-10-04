@@ -42,6 +42,7 @@ public:
   int make_action(const Action & action, int vision, int turn) noexcept;
   //void unmake_action(const Action & action) noexcept;
   int TerminalTest(int vision, int turn) noexcept;
+  void count_locked_pieces(int& white_count, int& black_count) const noexcept;
 };
 
 #endif
