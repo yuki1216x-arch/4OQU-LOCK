@@ -170,9 +170,9 @@ int main(int argc, char* argv[])
    * "white" locked white pieces and
    * "black" locked black pieces.
    */
+  
   unsigned long long
-    reachable_count[MAX_LOCKED_PIECES + 1]
-    [MAX_LOCKED_PIECES + 1] = {};
+    reachable_count[MAX_LOCKED_PIECES + 1][MAX_LOCKED_PIECES + 1] = {};
 
 
   /*
@@ -182,13 +182,42 @@ int main(int argc, char* argv[])
    * reachable positions.
    */
   unsigned long long
-  win_count[MAX_LOCKED_PIECES + 1]
-  [MAX_LOCKED_PIECES + 1] = {};
+    win_count[MAX_LOCKED_PIECES + 1][MAX_LOCKED_PIECES + 1] = {};
   
   unsigned long long total_reachable = 0;
   unsigned long long total_win = 0;
 
 
+  // ------------------------------------------------------------
+  // Statistics excluding terminal positions
+  // ------------------------------------------------------------
+
+  /*
+   * nonterminal_reachable_count[white][black]
+   *
+   * Number of reachable nonterminal positions having
+   * "white" locked white pieces and
+   * "black" locked black pieces.
+   */
+
+  unsigned long long
+    nonterminal_reachable_count[MAX_LOCKED_PIECES + 1][MAX_LOCKED_PIECES + 1] = {};
+
+  
+  /*
+   * nonterminal_win_count[white][black]
+   *
+   * Number of v_win_positions among the corresponding
+   * reachable nonterminal positions.
+   */
+
+  unsigned long long
+    nonterminal_win_count[MAX_LOCKED_PIECES + 1][MAX_LOCKED_PIECES + 1] = {};
+
+  unsigned long long total_nonterminal_reachable = 0;
+  unsigned long long total_nonterminal_win = 0;
+
+  
   // ------------------------------------------------------------
   // Search all placements
   // ------------------------------------------------------------
@@ -239,21 +268,61 @@ int main(int argc, char* argv[])
     }
 
 
-    // Count reachable position.
+    // ------------------------------------------------------------
+    // Count all reachable positions
+    // ------------------------------------------------------------
+
     reachable_count[locked_white][locked_black]++;
 
     total_reachable++;
 
 
-    // Count winning position.
-    if(result_table.get_value(id) == v_win) {
+    /*
+     * Read the result only once.
+     *
+     * The value is also used for the nonterminal statistics.
+     */
+    
+    const bool is_win =
+      (result_table.get_value(id) == v_win);
+
+    
+    if(is_win) {
       win_count[locked_white][locked_black]++;
 
       total_win++;
     }
+
+
+    // ------------------------------------------------------------
+    // Count reachable nonterminal positions
+    // ------------------------------------------------------------
+    
+    /*
+     * TerminalTest(vision, turn):
+     *
+     *   0     : nonterminal
+     *   non-0 : terminal
+     */
+    
+    if(posi.TerminalTest(vision, turn) == 0) {
+      
+      nonterminal_reachable_count
+	[locked_white][locked_black]++;
+      
+      total_nonterminal_reachable++;
+      
+      
+      if(is_win) {
+	nonterminal_win_count
+	  [locked_white][locked_black]++;
+	
+	total_nonterminal_win++;
+      }
+    }
   }
 
-
+  
   // ------------------------------------------------------------
   // Output results
   // ------------------------------------------------------------
@@ -321,6 +390,73 @@ int main(int argc, char* argv[])
   << total_win
   << endl;
 
+
+  // ------------------------------------------------------------
+  // Output results excluding terminal positions
+  // ------------------------------------------------------------
+
+  cout << endl;
+
+
+  cout << "excluding terminal positions"
+       << endl;
+
+
+  cout << endl;
+
+
+  cout << "locked_white"
+       << '\t'
+       << "locked_black"
+       << '\t'
+       << "reachable"
+       << '\t'
+       << "win"
+       << endl;
+
+
+  for(int white = 0;
+      white <= MAX_LOCKED_PIECES;
+      white++)
+    {
+      for(int black = 0;
+	  black <= MAX_LOCKED_PIECES;
+	  black++)
+	{
+	  /*
+	   * Do not output combinations for which
+	   * no reachable nonterminal position exists.
+	   */
+
+	  if(nonterminal_reachable_count[white][black] == 0) {
+	    continue;
+	  }
+
+
+	  cout << white
+	       << '\t'
+	       << black
+	       << '\t'
+	       << nonterminal_reachable_count[white][black]
+	       << '\t'
+	       << nonterminal_win_count[white][black]
+	       << endl;
+	}
+    }
+
+
+  cout << endl;
+
+
+  cout << "total_nonterminal_reachable = "
+       << total_nonterminal_reachable
+       << endl;
+
+
+  cout << "total_nonterminal_win       = "
+       << total_nonterminal_win
+       << endl;
+  
 
   return 0;
 }
