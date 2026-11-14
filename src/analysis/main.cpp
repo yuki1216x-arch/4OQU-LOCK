@@ -29,81 +29,86 @@ using std::min;
 
 using namespace std;
 
-constexpr int nworker = 7;
-constexpr int deq_input_size = 1024;
-constexpr int deq_output_size = 256;
-constexpr int max_legal_num = 1000;
-constexpr int max_belief_state = 12;
+constexpr int worker_count = 7;
+constexpr int input_queue_capacity = 1024;
+constexpr int output_queue_capacity = 256;
+constexpr int max_legal_action_count = 1000;
+constexpr int max_belief_state_size = 12;
 
-condition_variable cv_boss;
-condition_variable cv_worker;
-mutex mtx;
-mutex zdd_mtx;
+condition_variable coordinator_condition;
+condition_variable worker_condition;
+mutex queue_mutex;
+mutex zdd_mutex;
 
-bool flag_worker_quit = false; // 仕事が終わったことを表すフラグ
+bool workers_should_stop = false;   // Protected by queue_mutex.
 
-class Work {
-  unsigned long long int m_id;
-  int m_nchild;
-  int m_num_of_un;
-  int m_nchild_opp[2][max_belief_state];
-  int m_num_of_un_opp[2][max_belief_state];
-  long long int m_array_id[2][max_legal_num][max_belief_state];
-  long long int m_array_id_opp[2][max_belief_state][max_legal_num][max_belief_state];
+// Transfer a configuration and its child IDs between workers and the coodinator.
+// Negative action counts encode results: -1/-4 win, -2/-5 loss,
+// -6 no-loss, -7 no-win, and -8 draw. Child IDs use -2 win, -3 loss, -10 draw
+// from the viewpoint used by make_action(), before any perspective inversion.
+class WorkItem {
+  unsigned long long int m_configuration_id;
+  int m_action_count_or_result;
+  int m_belief_state_size;
+  int m_opponent_action_counts[2][max_belief_state_size];
+  int m_opponent_belief_state_sizes[2][max_belief_state_size];
+  long long int m_child_configuration_ids[2][max_legal_action_count][max_belief_state_size];
+  long long int m_opponent_child_configuration_ids[2][max_belief_state_size][max_legal_action_count][max_belief_state_size];
 public:
-  Work() noexcept {}
-  Work(unsigned long long int id) noexcept : m_id(id) {}
-  void set_id(unsigned long long int id) noexcept { m_id = id; }
-  void set(int nchild, int num_of_un) noexcept {
-    m_nchild = nchild;
-    m_num_of_un = num_of_un;
-    assert(nchild < max_legal_num);
-    assert(num_of_un <= max_belief_state);
+  WorkItem() noexcept {}
+  WorkItem(unsigned long long int configuration_id) noexcept : m_configuration_id(configuration_id) {}
+  void set_id(unsigned long long int configuration_id) noexcept { m_configuration_id = configuration_id; }
+  void set(int action_count_or_result, int belief_state_size) noexcept {
+    m_action_count_or_result = action_count_or_result;
+    m_belief_state_size = belief_state_size;
+    assert(action_count_or_result < max_legal_action_count);
+    assert(belief_state_size <= max_belief_state_size);
   }
-  void set(int nchild_opp[][max_belief_state], int num_of_un_opp[][max_belief_state],
-	   long long int array_id[][max_legal_num][max_belief_state], long long int array_id_opp[][max_belief_state][max_legal_num][max_belief_state]) noexcept {
+  void set(int opponent_action_counts[][max_belief_state_size], int opponent_belief_state_sizes[][max_belief_state_size],
+	   long long int child_configuration_ids[][max_legal_action_count][max_belief_state_size],
+	   long long int opponent_child_configuration_ids[][max_belief_state_size][max_legal_action_count][max_belief_state_size]) noexcept {
     for(int i = 0; i < 2; i++) {
-      for(int j = 0; j < m_nchild; j++) {
-	for(int k = 0; k < m_num_of_un; k++) {
-	  m_array_id[i][j][k] = array_id[i][j][k];
+      for(int j = 0; j < m_action_count_or_result; j++) {
+	for(int k = 0; k < m_belief_state_size; k++) {
+	  m_child_configuration_ids[i][j][k] = child_configuration_ids[i][j][k];
 	}
       }
-      for(int j = 0; j < m_num_of_un; j++) {
-        m_nchild_opp[i][j] = nchild_opp[i][j];
-	m_num_of_un_opp[i][j] = num_of_un_opp[i][j];
-	assert(nchild_opp[i][j] > 0 && nchild_opp[i][j] < 1000);
-	assert(num_of_un_opp[i][j] > 0 && num_of_un_opp[i][j] < 12);
-	for(int k = 0; k < nchild_opp[i][j]; k++) {
-	  for(int l = 0; l < num_of_un_opp[i][j]; l++) {
-	    m_array_id_opp[i][j][k][l] = array_id_opp[i][j][k][l];
+      for(int j = 0; j < m_belief_state_size; j++) {
+        m_opponent_action_counts[i][j] = opponent_action_counts[i][j];
+	m_opponent_belief_state_sizes[i][j] = opponent_belief_state_sizes[i][j];
+	assert(opponent_action_counts[i][j] > 0 && opponent_action_counts[i][j] < max_legal_action_count);
+	assert(opponent_belief_state_sizes[i][j] > 0 && opponent_belief_state_sizes[i][j] < max_belief_state_size);
+	for(int k = 0; k < opponent_action_counts[i][j]; k++) {
+	  for(int l = 0; l < opponent_belief_state_sizes[i][j]; l++) {
+	    m_opponent_child_configuration_ids[i][j][k][l] = opponent_child_configuration_ids[i][j][k][l];
 	  }
 	}
       }
     }
   }
-  unsigned long long int get_id() const noexcept { return m_id; }
-  void get_count(int& nchild, int& num_of_un) const noexcept {
-    nchild = m_nchild;
-    num_of_un = m_num_of_un;
+  unsigned long long int get_id() const noexcept { return m_configuration_id; }
+  void get_counts(int& action_count_or_result, int& belief_state_size) const noexcept {
+    action_count_or_result = m_action_count_or_result;
+    belief_state_size = m_belief_state_size;
   }
-  void get(long long int array_id[][max_legal_num][max_belief_state]) const noexcept {
+  void get(long long int child_configuration_ids[][max_legal_action_count][max_belief_state_size]) const noexcept {
     for(int i = 0; i < 2; i++) {
-      for(int j = 0; j < m_nchild; j++) {
-	for(int k = 0; k < m_num_of_un; k++) {
-	  array_id[i][j][k] = m_array_id[i][j][k];
+      for(int j = 0; j < m_action_count_or_result; j++) {
+	for(int k = 0; k < m_belief_state_size; k++) {
+	  child_configuration_ids[i][j][k] = m_child_configuration_ids[i][j][k];
 	}
       }
     }
   }
-  void get_opp(int nchild_opp[][max_belief_state], int num_of_un_opp[][max_belief_state],
-	       long long int array_id_opp[][max_belief_state][max_legal_num][max_belief_state]) const noexcept {
+  void get_opponent_children(int opponent_action_counts[][max_belief_state_size], int opponent_belief_state_sizes[][max_belief_state_size],
+	       long long int opponent_child_configuration_ids[][max_belief_state_size][max_legal_action_count][max_belief_state_size]) const noexcept {
     for(int i = 0; i < 2; i++) {
-      for(int j = 0; j < m_num_of_un; j++) {
-	nchild_opp[i][j] = m_nchild_opp[i][j];
-	num_of_un_opp[i][j] = m_num_of_un_opp[i][j];
-	for(int k = 0; k < m_nchild_opp[i][j]; k++) {
-	  for(int l = 0; l < m_num_of_un_opp[i][j]; l++) {
-	    array_id_opp[i][j][k][l] = m_array_id_opp[i][j][k][l];
+      for(int j = 0; j < m_belief_state_size; j++) {
+	opponent_action_counts[i][j] = m_opponent_action_counts[i][j];
+	opponent_belief_state_sizes[i][j] = m_opponent_belief_state_sizes[i][j];
+	for(int k = 0; k < m_opponent_action_counts[i][j]; k++) {
+	  for(int l = 0; l < m_opponent_belief_state_sizes[i][j]; l++) {
+	    opponent_child_configuration_ids[i][j][k][l] = m_opponent_child_configuration_ids[i][j][k][l];
 	  }
 	}
       }
@@ -111,7 +116,8 @@ public:
   }
 };
 
-constexpr unsigned long long int placement_count[2][17] {
+// Indexed by viewpoint (0 white, 1 black), then by remaining placements (16 - iteration).
+constexpr unsigned long long int configuration_counts[2][17] {
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
     19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
     144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
@@ -122,67 +128,91 @@ constexpr unsigned long long int placement_count[2][17] {
     666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
 };
 
-const string base[2] = {"white_table", "black_table"};
+const string database_prefixes[2] = {"white_table", "black_table"};
 
-unsigned long long int nwin = 0, nlose = 0, ndraw = 0, nunknown = 0, lunknown = 0, nnotwin = 0, nnotlose = 0;
+unsigned long long int win_count = 0;
+unsigned long long int loss_count = 0;
+unsigned long long int draw_count = 0;
+unsigned long long int unknown_count = 0;
+unsigned long long int last_unknown_id = 0;
+unsigned long long int no_win_count = 0;
+unsigned long long int no_loss_count = 0;
 
-unsigned long long int mm_me_win = 0, mm_ee_win = 0, me_mm_win = 0, me_em_win = 0; //(視点手番)_(視点手番)_(ラベル)
-unsigned long long int mm_me_lose = 0, mm_ee_lose = 0, me_mm_lose = 0, me_em_lose = 0;
-unsigned long long int mm_me_ntwin = 0, mm_ee_ntwin = 0, me_mm_ntwin = 0, me_em_ntwin = 0;
-unsigned long long int mm_me_ntlose = 0, mm_ee_ntlose = 0, me_mm_ntlose = 0, me_em_ntlose = 0;
-unsigned long long int all_draw = 0;
+// Diagnostic counters distinguish the parent turn and the child database viewpoint.
+// Self/opponent refer to the parent viewpoint player.
+unsigned long long int self_turn_self_view_win_count = 0;   // (mm_me_win)
+unsigned long long int self_turn_opponent_view_win_count = 0;   // (mm_ee_win)
+unsigned long long int opponent_turn_self_view_win_count = 0;   // (me_mm_win)
+unsigned long long int opponent_turn_opponent_view_win_count = 0;   // (me_em_win)
+unsigned long long int self_turn_self_view_loss_count = 0;   // (mm_me_loss)
+unsigned long long int self_turn_opponent_view_loss_count = 0;   // (mm_ee_loss)
+unsigned long long int opponent_turn_self_view_loss_count = 0;   // (me_mm_loss)
+unsigned long long int opponent_turn_opponent_view_loss_count = 0;   // (me_em_loss)
+unsigned long long int self_turn_self_view_no_win_count = 0;   // (mm_me_no_win)
+unsigned long long int self_turn_opponent_view_no_win_count = 0;   // (mm_ee_no_win)
+unsigned long long int opponent_turn_self_view_no_win_count = 0;   // (me_mm_no_win)
+unsigned long long int opponent_turn_opponent_view_no_win_count = 0;   // (me_em_no_win)
+unsigned long long int self_turn_self_view_no_loss_count = 0;   // (mm_me_no_loss)
+unsigned long long int self_turn_opponent_view_no_loss_count = 0;   // (mm_ee_no_loss)
+unsigned long long int opponent_turn_self_view_no_loss_count = 0;   // (me_mm_no_loss)
+unsigned long long int opponent_turn_opponent_view_no_loss_count = 0;   // (me_em_no_loss)
+unsigned long long int confirmed_draw_count = 0;
 unsigned long long int win_length_counts[17] = {}, loss_length_counts[17] = {};
 
-unsigned long long int al_win_num = 0;
-unsigned long long int al_lose_num = 0;
-unsigned long long int al_unknown_num = 0;
-unsigned long long int perfect = 0;
-unsigned long long int imperfect = 0;
+unsigned long long int terminal_win_count = 0;
+unsigned long long int terminal_loss_count = 0;
+unsigned long long int terminal_unknown_count = 0;
+unsigned long long int singleton_belief_count = 0;
+unsigned long long int multiple_configuration_belief_count = 0;
 
-deque<Work *> deq_input;
-deque<Work *> deq_output;
+deque<WorkItem *> input_queue;
+deque<WorkItem *> output_queue;
 
-static void boss(int iter, int vision, const char* write_file_name, const char* read_file_name1, const char* read_file_name2) noexcept {
-  cout << "boss" << endl;
+// Schedule work, classify returned children, and write the parent database.
+static void run_coordinator(int iteration, int viewpoint, const char* parent_database_path,
+			   const char* self_view_child_database_path, const char* opponent_view_child_database_path) noexcept {
+  cout << "[analysis] Coordinator started." << endl;
 
+  // Preserve the existing label and game-length storage widths for each layer.
   size_t bits_per_entry, child_bits_per_entry;
-  if(iter > 12) bits_per_entry = 4, child_bits_per_entry = 4;
-  else if(iter > 11) bits_per_entry = 8, child_bits_per_entry = 4;
+  if(iteration > 12) bits_per_entry = 4, child_bits_per_entry = 4;
+  else if(iteration > 11) bits_per_entry = 8, child_bits_per_entry = 4;
   else bits_per_entry = 8, child_bits_per_entry = 8;
-  Table parent_table(16 - iter, write_file_name, bits_per_entry, placement_count[vision][16 - iter]);
-  Table child_table(15 -iter, read_file_name1, child_bits_per_entry, placement_count[vision][15 - iter]);
-  Table opp_child_table(15 - iter, read_file_name2, child_bits_per_entry, placement_count[1 - vision][15 - iter]);
+  Table parent_table(16 - iteration, parent_database_path, bits_per_entry, configuration_counts[viewpoint][16 - iteration]);
+  Table self_view_child_table(15 -iteration, self_view_child_database_path, child_bits_per_entry, configuration_counts[viewpoint][15 - iteration]);
+  Table opponent_view_child_table(15 - iteration, opponent_view_child_database_path, child_bits_per_entry, configuration_counts[1 - viewpoint][15 - iteration]);
 
-  unsigned long long int max_placement = placement_count[vision][16 - iter];
-  unsigned long long int count_input = 0ULL;
-  unsigned long long int count_output = 0ULL;
+  unsigned long long int configuration_count = configuration_counts[viewpoint][16 - iteration];
+  unsigned long long int submitted_work_count = 0ULL;
+  unsigned long long int completed_work_count = 0ULL;
 
-  int nstack_work_idle = deq_input_size + deq_output_size + nworker;
-  Work* stack_work_idle[nstack_work_idle];
-  for(int i = 0; i < nstack_work_idle; i++) stack_work_idle[i] = new Work;
+  int idle_work_count = input_queue_capacity + output_queue_capacity + worker_count;
+  WorkItem* idle_work_items[idle_work_count];
+  for(int i = 0; i < idle_work_count; i++) idle_work_items[i] = new WorkItem;
 
-  cout << "aaa" << endl;
+  cout << "[analysis] Scheduling configurations." << endl;
 
   while(true) {
-    unique_lock<mutex> lck(mtx);
-    cv_boss.wait(lck, [&](){
-			return (((deq_input.size() < deq_input_size) && (deq_output.size() < deq_output_size) && (count_input < max_placement))
-				|| (0 < deq_output.size())); });
+    unique_lock<mutex> queue_lock(queue_mutex);
+    coordinator_condition.wait(queue_lock, [&](){
+			return (((input_queue.size() < input_queue_capacity) && (output_queue.size() < output_queue_capacity) && (submitted_work_count < configuration_count))
+				|| (0 < output_queue.size())); });
 
-    if((deq_input.size() < deq_input_size) && (deq_output.size() < deq_output_size) && count_input < max_placement) {
-      assert(nstack_work_idle >= 1);
-      Work *pw = stack_work_idle[ --nstack_work_idle ];
-      pw->set_id(count_input);
-      deq_input.push_front(pw);
-      lck.unlock();
-      count_input++;
+    if((input_queue.size() < input_queue_capacity) && (output_queue.size() < output_queue_capacity) && submitted_work_count < configuration_count) {
+      assert(idle_work_count >= 1);
+      WorkItem *work_item = idle_work_items[ --idle_work_count ];
+      work_item->set_id(submitted_work_count);
+      input_queue.push_front(work_item);
+      queue_lock.unlock();
+      submitted_work_count++;
 
-      if (count_input % 100000000ULL == 0ULL) { //1000000000ULL i
-	cout << "id: " << count_input << ", nwin: " << nwin << ", nlose: " << nlose << ", ndraw: " << ndraw
-	     << ", nnotwin: " << nnotwin << ", nnotlose: " << nnotlose << ", nunknown: " << nunknown << ", perfect: " << perfect << ", imperfect: " << imperfect << endl;
+      if(submitted_work_count % 100000000ULL == 0ULL) {
+	cout << "configuration_id: " << submitted_work_count << ", win_count: " << win_count << ", loss_count: " << loss_count << ", draw_count: " << draw_count
+	     << ", no_win_count: " << no_win_count << ", no_loss_count: " << no_loss_count << ", unknown_count: " << unknown_count
+	     << ", singleton_belief_count: " << singleton_belief_count << ", multiple_configuration_belief_count: " << multiple_configuration_belief_count << endl;
       }
 
-      if (count_input % 10000000000ULL == 0ULL) { //1000000000ULL i
+      if(submitted_work_count % 10000000000ULL == 0ULL) {
 	cout << "win positions by shortest win length:" << endl;
 	cout << "0 moves: " << std::setw(12) << win_length_counts[0] << " positions" << "          9 moves: " << std::setw(12) << win_length_counts[9] << " positions" << endl;
 	cout << "1 move : " << std::setw(12) << win_length_counts[1] << " positions" << "         10 moves: " << std::setw(12) << win_length_counts[10] << " positions" << endl;
@@ -206,359 +236,360 @@ static void boss(int iter, int vision, const char* write_file_name, const char* 
 	cout << "7 moves: " << std::setw(12) << loss_length_counts[7] << " positions" << "         16 moves: " << std::setw(12) << loss_length_counts[16] << " positions" << endl;
 	cout << "8 moves: " << std::setw(12) << loss_length_counts[8] << " positions" << endl;
       }
-      cv_worker.notify_one();
-      // cout << count_input << endl;
+      worker_condition.notify_one();
+      
     } else {
-      if(0 < deq_output.size()) {
-	assert(0 < deq_output.size());
-	deque<Work *> deq_tmp;
-	swap(deq_tmp, deq_output);
+      if(0 < output_queue.size()) {
+	assert(0 < output_queue.size());
+	deque<WorkItem *> completed_work_items;
+	swap(completed_work_items, output_queue);
 
-	deq_output.clear();
-	lck.unlock();
-	count_output += deq_tmp.size();
-	for(unsigned int workid = 0; workid < deq_tmp.size(); workid++) {
-	  unsigned long long int id = deq_tmp[workid]->get_id();
-	  int nchild, num_of_un;
-	  deq_tmp[workid]->get_count(nchild, num_of_un);
+	output_queue.clear();
+	queue_lock.unlock();
+	completed_work_count += completed_work_items.size();
+	for(unsigned int work_index = 0; work_index < completed_work_items.size(); work_index++) {
+	  unsigned long long int configuration_id = completed_work_items[work_index]->get_id();
+	  int action_count_or_result, belief_state_size;
+	  completed_work_items[work_index]->get_counts(action_count_or_result, belief_state_size);
 
-	  assert(mm_me_win + mm_ee_win + me_mm_win + me_em_win + al_win_num == nwin);
-	  assert(mm_me_lose + mm_ee_lose + me_mm_lose + me_em_lose + al_lose_num == nlose);
-	  assert(mm_me_ntwin + mm_ee_ntwin + me_mm_ntwin + me_em_ntwin == nnotwin);
-	  assert(mm_me_ntlose + mm_ee_ntlose + me_mm_ntlose + me_em_ntlose == nnotlose);
-	  assert(all_draw == ndraw);
+	  assert(self_turn_self_view_win_count + self_turn_opponent_view_win_count + opponent_turn_self_view_win_count
+		 + opponent_turn_opponent_view_win_count + terminal_win_count == win_count);
+	  assert(self_turn_self_view_loss_count + self_turn_opponent_view_loss_count + opponent_turn_self_view_loss_count
+		 + opponent_turn_opponent_view_loss_count + terminal_loss_count == loss_count);
+	  assert(self_turn_self_view_no_win_count + self_turn_opponent_view_no_win_count
+		 + opponent_turn_self_view_no_win_count + opponent_turn_opponent_view_no_win_count == no_win_count);
+	  assert(self_turn_self_view_no_loss_count + self_turn_opponent_view_no_loss_count
+		 + opponent_turn_self_view_no_loss_count + opponent_turn_opponent_view_no_loss_count == no_loss_count);
+	  assert(confirmed_draw_count == draw_count);
     
-	  int notlose_flg = 0;
-	  int which_ntlose = 0;
+	  int no_loss_found = 0;
+	  int no_loss_source = 0;
 
-	  int win_game_length, lose_game_length;
-	  lose_game_length = -1;
-	  if(iter % 2 == vision) win_game_length = 99;
-	  else win_game_length = -1;
-    
-	  if(num_of_un == 1) {
-	    perfect++;
+	  int win_length, loss_length;
+	  loss_length = -1;
+	  if(iteration % 2 == viewpoint) win_length = 99;
+	  else win_length = -1;
+
+	  assert(belief_state_size > 0);
+	  if(belief_state_size == 1) {
+	    singleton_belief_count++;
 	  } else {
-	    imperfect++;
+	    multiple_configuration_belief_count++;
 	  }
-	  assert(num_of_un > 0);
-	  if(nchild == -1) {
-	    al_win_num++;
-	    win_game_length = 0;
-	  } else if(nchild == -2) {
-	    al_lose_num++;
-	    lose_game_length = 0;
+	  if(action_count_or_result == -1) {
+	    terminal_win_count++;
+	    win_length = 0;
+	  } else if(action_count_or_result == -2) {
+	    terminal_loss_count++;
+	    loss_length = 0;
 	  } else {
-	    assert(nchild > 0);
+	    assert(action_count_or_result > 0);
 	  }
 	
-	  int game_val = 0;
-	  int already_decided = 0;
-	  if(nchild > 0) {
-	    long long int array_id[2][max_legal_num][max_belief_state];
-	    deq_tmp[workid]->get(array_id);
+	  int classification_result = 0;
+	  int classification_decided = 0;
+	  // First classify wins and no-loss results from the parent belief state.
+	  if(action_count_or_result > 0) {
+	    long long int child_configuration_ids[2][max_legal_action_count][max_belief_state_size];
+	    completed_work_items[work_index]->get(child_configuration_ids);
 	    
-	    int num_of_action = nchild;
-	    for(int which_table = 0; which_table < 2; which_table++) { //2種類のtableのどっちを使うか
-	      int win_plan_num = 0; //必勝戦略の数
-	      int lose_plan_num = 0; //必敗戦略の数
-	      int nlose_plan_num = 0; //負無し戦略の数
-	      int nwin_plan_num = 0; //勝無し戦略の数
-	      int draw_plan_num = 0; //引分戦略の数
-	      int unknown_plan_num = 0; //不明戦略の数
-	      for(int j = 0; j < num_of_action; j++) { //合法手の数だけループ
-		int kati = 0; //勝ち
-		int make = 0; //負け
-		int makenasi = 0; //負無し
-		int katinasi = 0; //勝無し
-		int hikiwake = 0; //引分
-		int kati_game_length = -1;
-		for(int m = 0; m < num_of_un; m++) { //belief state内の節点の数だけループ
-		  long long int num_of_haiti = array_id[which_table][j][m];
-		  if(num_of_haiti >= 0) { //まだ終わってない 表から値を取ってくる
-		    if(which_table == 0) { //子が自分視点
-		      int child_table_val = child_table.get_value((unsigned long long int)num_of_haiti); //子のtableから値を取得
-		      assert(child_table_val >= 0 && child_table_val <= 5);
-		      if(child_table_val == 1) {
-			//視点プレイヤ勝ち
-			kati++;
-			kati_game_length = max((int)child_table.get_game_length((unsigned long long int)num_of_haiti) + 1, kati_game_length);
-		      } else if(child_table_val == 2) {
-			//視点プレイヤ負け
-			make++;
-		      } else if(child_table_val == 4) {
-			makenasi++;
-		      } else if(child_table_val == 5) {
-			katinasi++;
-		      } else if(child_table_val == 3) {
-			hikiwake++;
-		      }
-		    } else { //子が相手視点
-		      int child_table_val = opp_child_table.get_value((unsigned long long int)num_of_haiti); //子のtableから値を取得
-		      assert(child_table_val >= 0 && child_table_val <= 5);
-		      if(child_table_val == 1) {
-			//視点プレイヤ負け
-			make++;
-		      } else if(child_table_val == 2) {
-			//視点プレイヤ勝ち
-			kati++;
-			kati_game_length = max((int)opp_child_table.get_game_length((unsigned long long int)num_of_haiti) + 1, kati_game_length);
-		      } else if(child_table_val == 4) {
-			katinasi++;
-		      } else if(child_table_val == 5) {
-			makenasi++;
-		      } else if(child_table_val == 3) {
-			hikiwake++;
+	    int action_count = action_count_or_result;
+	    // Child view index: 0 uses the parent viewpoint; 1 uses its opponent.
+	    for(int child_view_index = 0; child_view_index < 2; child_view_index++) {
+	      int winning_action_count = 0;
+	      int losing_action_count = 0;
+	      int no_loss_action_count = 0;
+	      int no_win_action_count = 0;
+	      int drawing_action_count = 0;
+	      int unknown_action_count = 0;
+	      for(int j = 0; j < action_count; j++) {
+		int winning_child_count = 0;
+		int losing_child_count = 0;
+		int no_loss_child_count = 0;
+		int no_win_child_count = 0;
+		int drawing_child_count = 0;
+		int action_win_length = -1;
+		for(int m = 0; m < belief_state_size; m++) {
+		  long long int child_configuration_id = child_configuration_ids[child_view_index][j][m];
+		  if(child_configuration_id >= 0) {
+		    if(child_view_index == 0) {
+		      int child_label = self_view_child_table.get_value((unsigned long long int)child_configuration_id);
+		      assert(child_label >= 0 && child_label <= 5);
+		      if(child_label == v_win) {
+			winning_child_count++;
+			action_win_length = max((int)self_view_child_table.get_game_length((unsigned long long int)child_configuration_id) + 1, action_win_length);
+		      } else if(child_label == v_lose) {
+			losing_child_count++;
+		      } else if(child_label == v_notlose) {
+			no_loss_child_count++;
+		      } else if(child_label == v_notwin) {
+			no_win_child_count++;
+		      } else if(child_label == v_draw) {
+			drawing_child_count++;
+		      } else {}
+		    } else {
+		      int child_label = opponent_view_child_table.get_value((unsigned long long int)child_configuration_id);
+		      assert(child_label >= 0 && child_label <= 5);
+		      if(child_label == v_win) {
+			losing_child_count++;
+		      } else if(child_label == v_lose) {
+			winning_child_count++;
+			action_win_length = max((int)opponent_view_child_table.get_game_length((unsigned long long int)child_configuration_id) + 1, action_win_length);
+		      } else if(child_label == v_notlose) {
+			no_win_child_count++;
+		      } else if(child_label == v_notwin) {
+			no_loss_child_count++;
+		      } else if(child_label == v_draw) {
+			drawing_child_count++;
 		      }
 		    }
 		  } else {
-		    if(num_of_haiti == -3) {
-		      //視点プレイヤ負け
-		      make++;
-		    } else if(num_of_haiti == -2) {
-		      //視点プレイヤ勝ち
-		      kati++;
-		      kati_game_length = max(1, kati_game_length);
-		    } else if(num_of_haiti == -10) {
-		      //引分
-		      hikiwake++;
+		    if(child_configuration_id == -3) {
+		      losing_child_count++;
+		    } else if(child_configuration_id == -2) {
+		      winning_child_count++;
+		      action_win_length = max(1, action_win_length);
+		    } else if(child_configuration_id == -10) {
+		      drawing_child_count++;
 		    }
 		  }
 		}
-		//if() { //手番プレイヤが視点プレイヤのとき
-		if(kati == num_of_un) { //必勝
-		  if(iter % 2 == vision) {
-		    if(already_decided != 1) {
-		      game_val = -4;
-		      if(which_table == 0) {
-			mm_me_win++;
+		
+		if(winning_child_count == belief_state_size) {
+		  if(iteration % 2 == viewpoint) {
+		    if(classification_decided != 1) {
+		      classification_result = -4;
+		      if(child_view_index == 0) {
+			self_turn_self_view_win_count++;
 		      } else {
-			mm_ee_win++;
+			self_turn_opponent_view_win_count++;
 		      }
 		    }
-		    already_decided = 1;
-		    win_game_length = min(kati_game_length, win_game_length);
+		    classification_decided = 1;
+		    win_length = min(action_win_length, win_length);
 		  } else {
-		    win_plan_num++;
-		    win_game_length = max(kati_game_length, win_game_length);
+		    winning_action_count++;
+		    win_length = max(action_win_length, win_length);
 		  }
-		} else if(kati + makenasi + hikiwake == num_of_un) { //負無し
-		  if(hikiwake == num_of_un) { //引分
-		    draw_plan_num++;
+		} else if(winning_child_count + no_loss_child_count + drawing_child_count == belief_state_size) {
+		  if(drawing_child_count == belief_state_size) {
+		    drawing_action_count++;
 		  } else {
-		    nlose_plan_num++;
+		    no_loss_action_count++;
 		  }
-		} else if(make == num_of_un) { //必敗
-		  lose_plan_num++;                    
-		} else if(make + katinasi + hikiwake == num_of_un) { //勝無し
-		  nwin_plan_num++;
+		} else if(losing_child_count == belief_state_size) {
+		  losing_action_count++;                    
+		} else if(losing_child_count + no_win_child_count + drawing_child_count == belief_state_size) {
+		  no_win_action_count++;
 		} else {
-		  unknown_plan_num++;
+		  unknown_action_count++;
 		}
-		if(j == num_of_action - 1 && iter % 2 == vision) {
-		  if(nlose_plan_num > 0 || draw_plan_num > 0) {
-		    if(already_decided != 1) {
-		      notlose_flg = 1;
-		      if(which_table == 0) {
-			mm_me_ntlose++;
-			which_ntlose = 1;
+		if(j == action_count - 1 && iteration % 2 == viewpoint) {
+		  if(no_loss_action_count > 0 || drawing_action_count > 0) {
+		    if(classification_decided != 1) {
+		      no_loss_found = 1;
+		      if(child_view_index == 0) {
+			self_turn_self_view_no_loss_count++;
+			no_loss_source = 1;
 		      } else {
-			mm_ee_ntlose++;
-			which_ntlose = 2;
+			self_turn_opponent_view_no_loss_count++;
+			no_loss_source = 2;
 		      }
 		    }
-		    already_decided = 1;
+		    classification_decided = 1;
 		  }
 		}
 	      }
-	      //すべての合法手を確認した後
-	      if(already_decided == 0) {
-		if(win_plan_num == num_of_action) {
-		  game_val = -4; //必勝を与える
-		  if(which_table == 0) {
-		    me_mm_win++;
+	      if(classification_decided == 0) {
+		if(winning_action_count == action_count) {
+		  classification_result = -4;
+		  if(child_view_index == 0) {
+		    opponent_turn_self_view_win_count++;
 		  } else {
-		    me_em_win++;
+		    opponent_turn_opponent_view_win_count++;
 		  }
-		} else if(nlose_plan_num + win_plan_num + draw_plan_num == num_of_action) {
-		  if(which_table == 0) {
-		    me_mm_ntlose++;
-		    which_ntlose = 3;
+		} else if(no_loss_action_count + winning_action_count + drawing_action_count == action_count) {
+		  if(child_view_index == 0) {
+		    opponent_turn_self_view_no_loss_count++;
+		    no_loss_source = 3;
 		  } else {
-		    me_em_ntlose++;
-		    which_ntlose = 4;
+		    opponent_turn_opponent_view_no_loss_count++;
+		    no_loss_source = 4;
 		  }
-		  notlose_flg = 1;
+		  no_loss_found = 1;
 		}
 	      }      
-	      if(game_val < 0) {
-		nchild = game_val;
+	      if(classification_result < 0) {
+		action_count_or_result = classification_result;
 		break;
-	      } else if(notlose_flg == 1) {
+	      } else if(no_loss_found == 1) {
 		break;
 	      }
 	    }
 	  }
-	  if(nchild > 0) { //後半のループでは必敗、勝無しを判定
-	    int nchild_opp[2][max_belief_state], num_of_un_opp[2][max_belief_state];
-	    long long int array_id_opp[2][max_belief_state][max_legal_num][max_belief_state];
-	    deq_tmp[workid]->get_opp(nchild_opp, num_of_un_opp, array_id_opp);
-	    for(int which_table = 0; which_table < 2; which_table++) {
-	      int opp_win_count = 0;
-	      int opp_nlose_count = 0;
-	      for(int j = 0; j < num_of_un; j++) { //親のbelief stateの中身の節点の数だけループ
-		int num_of_action_opp = nchild_opp[which_table][j];
-		int flg_l = 0;
-		int flg_l2 = 0;
-		int win_plan_num_opp = 0;
-		int nlose_plan_num_opp = 0;
-		int draw_plan_num_opp = 0;
-		int unknown_plan_num_opp = 0;
-		int lose_plan_game_length;
-		if(iter % 2 != vision) lose_plan_game_length = 99;
-		else lose_plan_game_length = -1;
-		for(int k = 0; k < nchild_opp[which_table][j]; k++) {
-		  int kati_opp = 0;
-		  int make_opp = 0;
-		  int hikiwake_opp = 0;
-		  int makenasi_opp = 0;
-		  int katinasi_opp = 0;
-		  int make_game_length = -1;
-		  flg_l = 0;
-		  for(int m = 0; m < num_of_un_opp[which_table][j]; m++) {
-		    long long int num_of_haiti_opp = array_id_opp[which_table][j][k][m];
-		    if(num_of_haiti_opp >= 0) { //まだ終わってない 表から値を取ってくる
-		      if(which_table == 0) {
-			int child_table_val_opp = child_table.get_value((unsigned long long int)num_of_haiti_opp); //子のtableから値を取得
-			assert(child_table_val_opp >= 0 && child_table_val_opp <= 5);
-			if(child_table_val_opp == 1) {
-			  kati_opp++; //元の親の視点プレイヤから見た必勝
-			} else if(child_table_val_opp == 2) {
-			  make_opp++; //の親の視点プレイヤから見た必敗
-			  make_game_length = max((int)child_table.get_game_length((unsigned long long int)num_of_haiti_opp) + 1, make_game_length);
-			} else if(child_table_val_opp == 3) {
-			  hikiwake_opp++; //元の親の視点プレイヤから見た引分
-			} else if(child_table_val_opp == 4) {
-			  makenasi_opp++; //元の親の視点プレイヤから見た負無し
-			} else if(child_table_val_opp == 5) {
-			  katinasi_opp++; //元の親の視点プレイヤから見た勝無し
+	  
+	  // First classify wins and no-loss results from the parent belief state.
+	  if(action_count_or_result > 0) {
+	    // Classify loss and no-win results through opponent belief states.
+	    int opponent_action_counts[2][max_belief_state_size], opponent_belief_state_sizes[2][max_belief_state_size];
+	    long long int opponent_child_configuration_ids[2][max_belief_state_size][max_legal_action_count][max_belief_state_size];
+	    completed_work_items[work_index]->get_opponent_children(opponent_action_counts, opponent_belief_state_sizes, opponent_child_configuration_ids);
+	    // Child view index: 0 uses the parent viewpoint; 1 uses its opponent.
+	    for(int child_view_index = 0; child_view_index < 2; child_view_index++) {
+	      int opponent_winning_belief_count = 0;
+	      int opponent_no_loss_belief_count = 0;
+	      for(int j = 0; j < belief_state_size; j++) {
+		int opponent_action_count = opponent_action_counts[child_view_index][j];
+		int opponent_belief_state_size = opponent_belief_state_sizes[child_view_index][j];
+		int opponent_action_classified = 0;
+		int opponent_belief_counted = 0;
+		int opponent_winning_action_count = 0;
+		int opponent_no_loss_action_count = 0;
+		int opponent_drawing_action_count = 0;
+		int opponent_unknown_action_count = 0;
+		int opponent_plan_loss_length;
+		if(iteration % 2 != viewpoint) opponent_plan_loss_length = 99;
+		else opponent_plan_loss_length = -1;
+		for(int k = 0; k < opponent_action_count; k++) {
+		  int self_winning_child_count = 0;
+		  int self_losing_child_count = 0;
+		  int self_drawing_child_count = 0;
+		  int self_no_loss_child_count = 0;
+		  int self_no_win_child_count = 0;
+		  int action_loss_length = -1;
+		  opponent_action_classified = 0;
+		  for(int m = 0; m < opponent_belief_state_size; m++) {
+		    long long int opponent_child_configuration_id = opponent_child_configuration_ids[child_view_index][j][k][m];
+		    if(opponent_child_configuration_id >= 0) {
+		      if(child_view_index == 0) {
+			int opponent_child_label = self_view_child_table.get_value((unsigned long long int)opponent_child_configuration_id);
+			assert(opponent_child_label >= 0 && opponent_child_label <= 5);
+			if(opponent_child_label == v_win) {
+			  self_winning_child_count++;
+			} else if(opponent_child_label == v_lose) {
+			  self_losing_child_count++;
+			  action_loss_length = max((int)self_view_child_table.get_game_length((unsigned long long int)opponent_child_configuration_id) + 1, action_loss_length);
+			} else if(opponent_child_label == v_draw) {
+			  self_drawing_child_count++;
+			} else if(opponent_child_label == v_notlose) {
+			  self_no_loss_child_count++;
+			} else if(opponent_child_label == v_notwin) {
+			  self_no_win_child_count++;
 			}
 		      } else {
-			int child_table_val_opp = opp_child_table.get_value((unsigned long long int)num_of_haiti_opp); //子のtableから値を取得
-			assert(child_table_val_opp >= 0 && child_table_val_opp <= 5);
-			if(child_table_val_opp == 1) {
-			  make_opp++; //元の親の視点プレイヤから見た必敗(visionが1なら白視点から見た負け)
-			  make_game_length = max((int)opp_child_table.get_game_length((unsigned long long int)num_of_haiti_opp) + 1, make_game_length);
-			} else if(child_table_val_opp == 2) {
-			  kati_opp++; //元の親の視点プレイヤから見た必勝
-			} else if(child_table_val_opp == 3) {
-			  hikiwake_opp++;
-			} else if(child_table_val_opp == 4) {
-			  katinasi_opp++;
-			} else if(child_table_val_opp == 5) {
-			  makenasi_opp++;
+			int opponent_child_label = opponent_view_child_table.get_value((unsigned long long int)opponent_child_configuration_id);
+			assert(opponent_child_label >= 0 && opponent_child_label <= 5);
+			if(opponent_child_label == v_win) {
+			  self_losing_child_count++;
+			  action_loss_length = max((int)opponent_view_child_table.get_game_length((unsigned long long int)opponent_child_configuration_id) + 1, action_loss_length);
+			} else if(opponent_child_label == v_lose) {
+			  self_winning_child_count++;
+			} else if(opponent_child_label == v_draw) {
+			  self_drawing_child_count++;
+			} else if(opponent_child_label == v_notlose) {
+			  self_no_win_child_count++;
+			} else if(opponent_child_label == v_notwin) {
+			  self_no_loss_child_count++;
 			}
 		      }
 		    } else {
-		      if(num_of_haiti_opp == -3) {
-			//視点プレイヤ負け
-			kati_opp++;
-		      } else if(num_of_haiti_opp == -2) {
-			//視点プレイヤ勝ち
-			make_opp++;
-			make_game_length = max(1, make_game_length);
-		      } else if(num_of_haiti_opp == -10) {
-			hikiwake_opp++;
+		      if(opponent_child_configuration_id == -3) {
+			self_winning_child_count++;
+		      } else if(opponent_child_configuration_id == -2) {
+			self_losing_child_count++;
+			action_loss_length = max(1, action_loss_length);
+		      } else if(opponent_child_configuration_id == -10) {
+			self_drawing_child_count++;
 		      }
 		    }
 		  }
-		  if(make_opp == num_of_un_opp[which_table][j]) { //相手が必勝になる行動があった場合
-		    if(iter % 2 != vision) {
-		      if(flg_l2 != 1) opp_win_count++;
-		      flg_l = 1;
-		      flg_l2 = 1;
-		      lose_plan_game_length = min(make_game_length, lose_plan_game_length);
-		      lose_game_length = max(lose_plan_game_length, lose_game_length);
+		  if(self_losing_child_count == opponent_belief_state_size) {
+		    if(iteration % 2 != viewpoint) {
+		      if(opponent_belief_counted != 1) opponent_winning_belief_count++;
+		      opponent_action_classified = 1;
+		      opponent_belief_counted = 1;
+		      opponent_plan_loss_length = min(action_loss_length, opponent_plan_loss_length);
+		      loss_length = max(opponent_plan_loss_length, loss_length);
 		    } else {
-		      win_plan_num_opp++;
-		      lose_plan_game_length = max(make_game_length, lose_plan_game_length);
+		      opponent_winning_action_count++;
+		      opponent_plan_loss_length = max(action_loss_length, opponent_plan_loss_length);
 		    }
-		  } else if(make_opp + hikiwake_opp + katinasi_opp == num_of_un_opp[which_table][j]) {
-		    if(make_opp == 0 && katinasi_opp == 0) {
-		      draw_plan_num_opp++;
+		  } else if(self_losing_child_count + self_drawing_child_count + self_no_win_child_count == opponent_belief_state_size) {
+		    if(self_losing_child_count == 0 && self_no_win_child_count == 0) {
+		      opponent_drawing_action_count++;
 		    } else {
-		      nlose_plan_num_opp++;
+		      opponent_no_loss_action_count++;
 		    }
 		  } else {
-		    unknown_plan_num_opp++;
+		    opponent_unknown_action_count++;
 		  }
-		  if(k == num_of_action_opp - 1 && iter % 2 != vision) {
-		    if(nlose_plan_num_opp > 0 || draw_plan_num_opp > 0) {
-		      if(flg_l2 != 1) opp_nlose_count++;
-		      flg_l = 1;
-		      flg_l2 = 1;
+		  if(k == opponent_action_count - 1 && iteration % 2 != viewpoint) {
+		    if(opponent_no_loss_action_count > 0 || opponent_drawing_action_count > 0) {
+		      if(opponent_belief_counted != 1) opponent_no_loss_belief_count++;
+		      opponent_action_classified = 1;
+		      opponent_belief_counted = 1;
 		    }
 		  }
 		}
-		if(flg_l == 0) {
-		  if(win_plan_num_opp == num_of_action_opp) {
-		    flg_l = 1;
-		    opp_win_count++;
-		    lose_game_length = max(lose_plan_game_length, lose_game_length);
-		  } else if(win_plan_num_opp + draw_plan_num_opp + nlose_plan_num_opp == num_of_action_opp) {
-		    flg_l = 1;
-		    opp_nlose_count++;
+		if(opponent_action_classified == 0) {
+		  if(opponent_winning_action_count == opponent_action_count) {
+		    opponent_action_classified = 1;
+		    opponent_winning_belief_count++;
+		    loss_length = max(opponent_plan_loss_length, loss_length);
+		  } else if(opponent_winning_action_count + opponent_drawing_action_count + opponent_no_loss_action_count == opponent_action_count) {
+		    opponent_action_classified = 1;
+		    opponent_no_loss_belief_count++;
 		  }
 		}
-		if(flg_l == 0) break;
+		if(opponent_action_classified == 0) break;
 	      }
-	      if(opp_win_count == num_of_un) {
-		nchild = -5; //必敗
-		if(iter % 2 != vision) {
-		  if(which_table == 0) {
-		    me_mm_lose++;
+	      if(opponent_winning_belief_count == belief_state_size) {
+		action_count_or_result = -5;
+		if(iteration % 2 != viewpoint) {
+		  if(child_view_index == 0) {
+		    opponent_turn_self_view_loss_count++;
 		  } else {
-		    me_em_lose++;
+		    opponent_turn_opponent_view_loss_count++;
 		  }
 		} else {
-		  if(which_table == 0) {
-		    mm_me_lose++;
+		  if(child_view_index == 0) {
+		    self_turn_self_view_loss_count++;
 		  } else {
-		    mm_ee_lose++;
+		    self_turn_opponent_view_loss_count++;
 		  }
 		}
 		break;
-	      } else if(opp_win_count + opp_nlose_count == num_of_un) {
-		if(notlose_flg == 1) { //引分
-		  nchild = -8;
-		  all_draw++;
-		  if(iter % 2 == vision) {
-		    if(which_ntlose == 1) {
-		      mm_me_ntlose--;
-		    } else if(which_ntlose == 2) {
-		      mm_ee_ntlose--;
+	      } else if(opponent_winning_belief_count + opponent_no_loss_belief_count == belief_state_size) {
+		if(no_loss_found == 1) {
+		  action_count_or_result = -8;
+		  confirmed_draw_count++;
+		  if(iteration % 2 == viewpoint) {
+		    if(no_loss_source == 1) {
+		      self_turn_self_view_no_loss_count--;
+		    } else if(no_loss_source == 2) {
+		      self_turn_opponent_view_no_loss_count--;
 		    }
 		  } else {
-		    if(which_ntlose == 3) {
-		      me_mm_ntlose--;
-		    } else if(which_ntlose == 4) {
-		      me_em_ntlose--;
+		    if(no_loss_source == 3) {
+		      opponent_turn_self_view_no_loss_count--;
+		    } else if(no_loss_source == 4) {
+		      opponent_turn_opponent_view_no_loss_count--;
 		    }
 		  }
 		  break;
 		} else {
-		  nchild = -7; //勝無し
-		  if(iter % 2 != vision) {
-		    if(which_table == 0) {
-		      me_mm_ntwin++;
+		  action_count_or_result = -7;
+		  if(iteration % 2 != viewpoint) {
+		    if(child_view_index == 0) {
+		      opponent_turn_self_view_no_win_count++;
 		    } else {
-		      me_em_ntwin++;
+		      opponent_turn_opponent_view_no_win_count++;
 		    }
 		  } else {
-		    if(which_table == 0) {
-		      mm_me_ntwin++;
+		    if(child_view_index == 0) {
+		      self_turn_self_view_no_win_count++;
 		    } else {
-		      mm_ee_ntwin++;
+		      self_turn_opponent_view_no_win_count++;
 		    }
 		  }
 		  break;
@@ -566,219 +597,229 @@ static void boss(int iter, int vision, const char* write_file_name, const char* 
 	      }
 	    } 
 	  }
-	  if(nchild > 0 && notlose_flg == 1) {
-	    nchild = -6;
+	  if(action_count_or_result > 0 && no_loss_found == 1) {
+	    action_count_or_result = -6;
 	  }
-	  if(nchild == -1 || nchild == -4) {
-	    assert(win_game_length >= 0 && win_game_length <= 16 - iter);
-	    parent_table.set(id, v_win, win_game_length);
-	    //cout << "win" << endl;
-	    nwin++;
-	    win_length_counts[win_game_length]++;
-	  } else if(nchild == -2 || nchild == -5) {
-	    assert(lose_game_length >= 0 && lose_game_length <= 16 - iter);
-	    parent_table.set(id, v_lose, lose_game_length);
-	    //cout << "lose" << endl;
-	    nlose++;
-	    loss_length_counts[lose_game_length]++;
-	  } else if(nchild == -8) {
-	    parent_table.set(id, v_draw, 0ULL);
-	    //cout << "draw" << endl;
-	    ndraw++;
-	  } else if(nchild == -6) {
-	    parent_table.set(id, v_notlose, 0ULL);
-	    //cout << "notlose" << endl;
-	    nnotlose++;
-	  } else if(nchild == -7) {
-	    parent_table.set(id, v_notwin, 0ULL);
-	    //cout << "notwin" << endl;
-	    nnotwin++;
+	  if(action_count_or_result == -1 || action_count_or_result == -4) {
+	    assert(win_length >= 0 && win_length <= 16 - iteration);
+	    parent_table.set(configuration_id, v_win, win_length);
+	    win_count++;
+	    win_length_counts[win_length]++;
+	  } else if(action_count_or_result == -2 || action_count_or_result == -5) {
+	    assert(loss_length >= 0 && loss_length <= 16 - iteration);
+	    parent_table.set(configuration_id, v_lose, loss_length);
+	    loss_count++;
+	    loss_length_counts[loss_length]++;
+	  } else if(action_count_or_result == -8) {
+	    parent_table.set(configuration_id, v_draw, 0ULL);
+	    draw_count++;
+	  } else if(action_count_or_result == -6) {
+	    parent_table.set(configuration_id, v_notlose, 0ULL);
+	    no_loss_count++;
+	  } else if(action_count_or_result == -7) {
+	    parent_table.set(configuration_id, v_notwin, 0ULL);
+	    no_win_count++;
 	  } else {
-	    nunknown++;
-	    parent_table.set(id, v_unknown, 0ULL);
-	    //cout << "unknown" << endl;
+	    unknown_count++;
+	    parent_table.set(configuration_id, v_unknown, 0ULL);
 	  }
 	}
-	//紙を棚に戻す作業
-	for(size_t i = 0; i < deq_tmp.size(); i++) {
-	  assert(nstack_work_idle < 2048);
-	  stack_work_idle[ nstack_work_idle++ ] = deq_tmp[i];
+	
+	// Return completed work items to the reusable pool.
+	for(size_t i = 0; i < completed_work_items.size(); i++) {
+	  assert(idle_work_count < 2048);
+	  idle_work_items[idle_work_count++] = completed_work_items[i];
 	}
       }
-      if(count_output >= max_placement) break;
+      if(completed_work_count >= configuration_count) break;
     }
   }
 
-  cout << "before_outtable" << endl;                                                                 // ***
-  {   
-    OutTable out_table(16 - iter, write_file_name, max_placement, bits_per_entry);
-    for (unsigned long long int i = 0; i < max_placement; i++) { //haiti
-      out_table.write(parent_table.get(i));
+  cout << "[analysis] Writing database: " << parent_database_path << endl;
+  {
+    OutTable database_writer(16 - iteration, parent_database_path, configuration_count, bits_per_entry);
+    for(unsigned long long int i = 0; i < configuration_count; i++) {
+      database_writer.write(parent_table.get(i));
     }
-    out_table.flush();
+    database_writer.flush();
   }
 
   {
-    unique_lock<mutex> lck(mtx); // ロック
-    flag_worker_quit = true; // 仕事が終わったことを表すフラグ
+    unique_lock<mutex> queue_lock(queue_mutex);
+    workers_should_stop = true;
   }
-  cv_worker.notify_all();
+  worker_condition.notify_all();
 }
 
-static void worker(int iteration, int vision, const ZDD& zdd_parent, const ZDD& zdd_child, const ZDD& zdd_child_opp) noexcept {
-  Work *w;
+// Generate compatible configurations and child IDs; the coordinator reads labels.
+static void run_worker(int iteration, int viewpoint, const ZDD& parent_zdd, const ZDD& self_view_child_zdd, const ZDD& opponent_view_child_zdd) noexcept {
+  WorkItem *work_item;
   while(true) {
-    unique_lock<mutex> lck(mtx);
+    unique_lock<mutex> queue_lock(queue_mutex);
 
-    cv_worker.wait(lck, [&](){ if(0 < deq_input.size()) return true;
-	return flag_worker_quit; });
-    if(flag_worker_quit) break;
-    assert(0 < deq_input.size());
-    w = deq_input.back();
-    deq_input.pop_back();
-    lck.unlock();
+    worker_condition.wait(queue_lock, [&](){ if(0 < input_queue.size()) return true;
+	return workers_should_stop; });
+    if(workers_should_stop) break;
+    assert(0 < input_queue.size());
+    work_item = input_queue.back();
+    input_queue.pop_back();
+    queue_lock.unlock();
 
-    unsigned long long int id = w->get_id();
-    Posi p;
-    p.make_posi(id, zdd_parent);
+    unsigned long long int configuration_id = work_item->get_id();
+    Posi position;
+    position.make_posi(configuration_id, parent_zdd);
     Action actions[1000] = {};
-    unsigned char board_belief[12][46] = {};
-    int nchild = p.compute_actions(actions, vision, iteration);
-    int num_of_un = p.getunknowninfo(board_belief, vision, iteration);
-    assert(nchild == -2 || nchild == -1 || (nchild > 0 && nchild < max_legal_num));
-    assert(num_of_un > 0 && num_of_un <= max_belief_state);
+    unsigned char compatible_boards[12][46] = {};
+    int action_count_or_result = position.compute_actions(actions, viewpoint, iteration);
+    int belief_state_size = position.getunknowninfo(compatible_boards, viewpoint, iteration);
+    assert(action_count_or_result == -2 || action_count_or_result == -1 || (action_count_or_result > 0 && action_count_or_result < max_legal_action_count));
+    assert(belief_state_size > 0 && belief_state_size <= max_belief_state_size);
 
-    w->set(nchild, num_of_un);
-    if(nchild > 0) {
-      int nchild_opp[2][max_belief_state], num_of_un_opp[2][max_belief_state];
-      long long int array_id[2][max_legal_num][max_belief_state], array_id_opp[2][max_belief_state][max_legal_num][max_belief_state];
+    work_item->set(action_count_or_result, belief_state_size);
+    if(action_count_or_result > 0) {
+      int opponent_action_counts[2][max_belief_state_size], opponent_belief_state_sizes[2][max_belief_state_size];
+      long long int child_configuration_ids[2][max_legal_action_count][max_belief_state_size], opponent_child_configuration_ids[2][max_belief_state_size][max_legal_action_count][max_belief_state_size];
 
-      for(int which_table = 0; which_table < 2; which_table++) {
-	for(int j = 0; j < nchild; j++) {
-	  for(int m = 0; m < num_of_un; m++) {
-	    p.make_posi_n(board_belief, m); // 第3者視点の配置を作る
-	    int board_check = p.make_action(actions[j], vision, iteration);
-	    if(board_check == 0) { // まだ終わってない
-	      if(which_table == 0) { // 子が自分視点
-		p.make_posi_myself();
-		array_id[which_table][j][m] = p.getzddnum(zdd_child); // 子のZDDから子の配置の番号を取得
-	      } else { // 子が相手視点
-		p.make_posi_opponent();
-		array_id[which_table][j][m] = p.getzddnum(zdd_child_opp); // 子のZDDから子の配置の番号を取得
+      // Child view index: 0 uses the parent viewpoint; 1 uses its opponent.
+      for(int child_view_index = 0; child_view_index < 2; child_view_index++) {
+	for(int j = 0; j < action_count_or_result; j++) {
+	  for(int m = 0; m < belief_state_size; m++) {
+	    position.make_posi_n(compatible_boards, m);
+	    int action_result = position.make_action(actions[j], viewpoint, iteration);
+	    if(action_result == 0) {
+	      if(child_view_index == 0) {
+		position.make_posi_myself();
+		child_configuration_ids[child_view_index][j][m] = position.getzddnum(self_view_child_zdd);
+	      } else {
+		position.make_posi_opponent();
+		child_configuration_ids[child_view_index][j][m] = position.getzddnum(opponent_view_child_zdd);
 	      }
 	    } else {
-	      if(board_check == 3) array_id[which_table][j][m] = -3;
-	      else if(board_check == 2) array_id[which_table][j][m] = -2;
+	      if(action_result == 3) child_configuration_ids[child_view_index][j][m] = -3;
+	      else if(action_result == 2) child_configuration_ids[child_view_index][j][m] = -2;
 	      else {
-		assert(board_check == 10);
-		array_id[which_table][j][m] = -10;
+		assert(action_result == 10);
+		child_configuration_ids[child_view_index][j][m] = -10;
 	      }
 	    }
 	  }
-	  // p.make_posi(id, zdd_parent);
 	}
       }
 
-      p.make_posi(id, zdd_parent);
-      for(int which_table = 0; which_table < 2; which_table++) {
-	for(int j = 0; j < num_of_un; j++) {
-	  Action actions_opp[1000] = {};
-	  unsigned char board_belief_opp[12][46] = {};
-	  p.make_posi_n(board_belief, j);
-	  p.make_posi_opponent();
-	  nchild_opp[which_table][j] = p.compute_actions(actions_opp, 1 - vision, iteration);
-	  num_of_un_opp[which_table][j] = p.getunknowninfo(board_belief_opp, 1 - vision, iteration);
-	  assert(nchild_opp[which_table][j] > 0);
-	  assert(nchild_opp[which_table][j] < max_legal_num);
-	  assert(num_of_un_opp[which_table][j] > 0 && num_of_un_opp[which_table][j] <= max_belief_state);
-	  for(int k = 0; k < nchild_opp[which_table][j]; k++) {
-	    for(int m = 0; m < num_of_un_opp[which_table][j]; m++) {
-	      p.make_posi_n(board_belief_opp, m); // 第3者視点の配置を作る
-	      int board_check = p.make_action(actions_opp[k], 1 - vision, iteration);
-	      if(board_check == 0) {// まだ終わってない
-		if(which_table == 0) { // 子が相手視点
-		  p.make_posi_opponent();
-		  array_id_opp[which_table][j][k][m] = p.getzddnum(zdd_child); // 子のZDDから子の配置の番号を取得
+      position.make_posi(configuration_id, parent_zdd);
+      // Child view index: 0 uses the parent viewpoint; 1 uses its opponent.
+      for(int child_view_index = 0; child_view_index < 2; child_view_index++) {
+	for(int j = 0; j < belief_state_size; j++) {
+	  Action opponent_actions[1000] = {};
+	  unsigned char opponent_compatible_boards[12][46] = {};
+	  position.make_posi_n(compatible_boards, j);
+	  position.make_posi_opponent();
+	  opponent_action_counts[child_view_index][j] = position.compute_actions(opponent_actions, 1 - viewpoint, iteration);
+	  opponent_belief_state_sizes[child_view_index][j] = position.getunknowninfo(opponent_compatible_boards, 1 - viewpoint, iteration);
+	  assert(opponent_action_counts[child_view_index][j] > 0 && opponent_action_counts[child_view_index][j] < max_legal_action_count);
+	  assert(opponent_belief_state_sizes[child_view_index][j] > 0 && opponent_belief_state_sizes[child_view_index][j] <= max_belief_state_size);
+	  for(int k = 0; k < opponent_action_counts[child_view_index][j]; k++) {
+	    for(int m = 0; m < opponent_belief_state_sizes[child_view_index][j]; m++) {
+	      position.make_posi_n(opponent_compatible_boards, m);
+	      int action_result = position.make_action(opponent_actions[k], 1 - viewpoint, iteration);
+	      if(action_result == 0) {
+		if(child_view_index == 0) {
+		  position.make_posi_opponent();
+		  opponent_child_configuration_ids[child_view_index][j][k][m] = position.getzddnum(self_view_child_zdd);
 		} else {
-		  p.make_posi_myself();
-		  array_id_opp[which_table][j][k][m] = p.getzddnum(zdd_child_opp); // 子のZDDから子の配置の番号を取得
+		  position.make_posi_myself();
+		  opponent_child_configuration_ids[child_view_index][j][k][m] = position.getzddnum(opponent_view_child_zdd);
 		}
 	      } else {
-		if(board_check == 3) array_id_opp[which_table][j][k][m] = -3;
-		else if(board_check == 2) array_id_opp[which_table][j][k][m] = -2;
+		if(action_result == 3) opponent_child_configuration_ids[child_view_index][j][k][m] = -3;
+		else if(action_result == 2) opponent_child_configuration_ids[child_view_index][j][k][m] = -2;
 		else {
-		  assert(board_check == 10);
-		  array_id_opp[which_table][j][k][m] = -10;
+		  assert(action_result == 10);
+		  opponent_child_configuration_ids[child_view_index][j][k][m] = -10;
 		}
 	      }
 	    }
-	    // p.make_posi(id, zdd_parent);
 	  }
 	}
       }
-      w->set(nchild_opp, num_of_un_opp, array_id, array_id_opp);
+      work_item->set(opponent_action_counts, opponent_belief_state_sizes, child_configuration_ids, opponent_child_configuration_ids);
     }
 
-    lck.lock(); // ロック（deq_outputに触るため）
-    deq_output.push_front(w); // 1つのスレッドしか触っちゃいけない
-    lck.unlock(); // ロック解除
-    cv_boss.notify_one(); // cv_bossで現在waitをcallしているスレッド1つに信号が行く。
+    // Publish completed work while holding the shared queue mutex.
+    queue_lock.lock();
+    output_queue.push_front(work_item);
+    queue_lock.unlock();
+    coordinator_condition.notify_one();
   }
 }
 
-//---.exe iter read_file write_file
+// Arguments retain the existing interface: iteration, then viewpoint (0 white, 1 black).
 int main(int argc, char *argv[]) {
+  // Iteration is the number of placements already made; even turns are white.
   int iteration = atoi(argv[1]);
-  int vision = atoi(argv[2]); //0なら白視点, 1なら黒視点
-  string base_filename = base[vision];
-  string base_filename_opp = base[1 - vision];
-  string read_filename_str = "data/db/" + base_filename + "_" + to_string(iteration) + ".bin";
-  string read_filename_str_child = "data/db/" + base_filename + "_" + to_string(iteration+1) + ".bin";
-  string read_filename_str_child_opp = "data/db/" + base_filename_opp + "_" + to_string(iteration+1) + ".bin";
-  unique_ptr<ZDD> zdd_parent = make_unique<ZDD>(vision, iteration);
-  unique_ptr<ZDD> zdd_child;
-  unique_ptr<ZDD> zdd_child_opp;
+  int viewpoint = atoi(argv[2]);   // 0: white; 1: black.
+  string self_view_database_prefix = database_prefixes[viewpoint];
+  string opponent_view_database_prefix = database_prefixes[1 - viewpoint];
+  string parent_database_path = "data/db/" + self_view_database_prefix + "_" + to_string(iteration) + ".bin";
+  string self_view_child_database_path = "data/db/" + self_view_database_prefix + "_" + to_string(iteration + 1) + ".bin";
+  string opponent_view_child_database_path = "data/db/" + opponent_view_database_prefix + "_" + to_string(iteration + 1) + ".bin";
+  unique_ptr<ZDD> parent_zdd = make_unique<ZDD>(viewpoint, iteration);
+  unique_ptr<ZDD> self_view_child_zdd;
+  unique_ptr<ZDD> opponent_view_child_zdd;
+  // At the final layer, child IDs are unused; retain the existing ZDD setup.
   if(iteration == 15) {
-    zdd_child = make_unique<ZDD>(vision, iteration);
-    zdd_child_opp = make_unique<ZDD>(1 - vision, iteration);
+    self_view_child_zdd = make_unique<ZDD>(viewpoint, iteration);
+    opponent_view_child_zdd = make_unique<ZDD>(1 - viewpoint, iteration);
   } else {
-    zdd_child = make_unique<ZDD>(vision, iteration + 1);
-    zdd_child_opp = make_unique<ZDD>(1 - vision, iteration + 1);
+    self_view_child_zdd = make_unique<ZDD>(viewpoint, iteration + 1);
+    opponent_view_child_zdd = make_unique<ZDD>(1 - viewpoint, iteration + 1);
   }
 
-  thread th_boss([=]{boss(iteration, vision, read_filename_str.c_str(), read_filename_str_child.c_str(), read_filename_str_child_opp.c_str());}); // boss側を作る
+  thread coordinator_thread([=]{run_coordinator(iteration, viewpoint, parent_database_path.c_str(), self_view_child_database_path.c_str(), opponent_view_child_database_path.c_str());});
 
-  thread th_worker[nworker];
-  for(int workerid = 0; workerid < nworker; workerid++) {
-    th_worker[workerid] = thread(worker, iteration, vision, std::cref(*zdd_parent), std::cref(*zdd_child), std::cref(*zdd_child_opp)); // ここでworker()を呼び出す
+  thread worker_threads[worker_count];
+  for(int worker_index = 0; worker_index < worker_count; worker_index++) {
+    worker_threads[worker_index] = thread(run_worker, iteration, viewpoint, std::cref(*parent_zdd), std::cref(*self_view_child_zdd), std::cref(*opponent_view_child_zdd));
   }
 
-  // 終了処理
-  th_boss.join();
-  for(int workerid = 0; workerid < nworker; workerid++) {
-    th_worker[workerid].join();
+  // Wait for all database output and worker processing to finish.
+  coordinator_thread.join();
+  for(int worker_index = 0; worker_index < worker_count; worker_index++) {
+    worker_threads[worker_index].join();
   }
   
-  cout << "nwin  =  " << nwin << endl;
-  cout << "nlose  =  " << nlose << endl;
-  cout << "ndraw  =  " << ndraw << endl;
-  cout << "nunknown  =  " << nunknown << endl;
-  cout << "nnotwin  =  " << nnotwin << endl;
-  cout << "nnotlose  =  " << nnotlose << endl;
-  cout << "alwin = " << al_win_num << endl;
-  cout << "allose = " << al_lose_num << endl;
-  cout << "alunknown = " << al_unknown_num << endl;
-  cout << "perfect = " << perfect << endl;
-  cout << "imperfect = " << imperfect << endl;
+  cout << "win_count  =  " << win_count << endl;
+  cout << "loss_count  =  " << loss_count << endl;
+  cout << "draw_count  =  " << draw_count << endl;
+  cout << "unknown_count  =  " << unknown_count << endl;
+  cout << "no_win_count  =  " << no_win_count << endl;
+  cout << "no_loss_count  =  " << no_loss_count << endl;
+  cout << "terminal_win_count  =  " << terminal_win_count << endl;
+  cout << "terminal_loss_count  =  " << terminal_loss_count << endl;
+  cout << "terminal_unknown_count  =  " << terminal_unknown_count << endl;
+  cout << "singleton_belief_count  =  " << singleton_belief_count << endl;
+  cout << "multiple_configuration_belief_count  =  " << multiple_configuration_belief_count << endl;
   
-  cout << "mm_me_win = " << mm_me_win << ", mm_ee_win = " << mm_ee_win << ", me_mm_win = " << me_mm_win << ", me_em_win = " << me_em_win << endl;
-  cout << "mm_me_lose = " << mm_me_lose << ", mm_ee_lose = " << mm_ee_lose << ", me_mm_lose = " << me_mm_lose << ", me_em_lose = " << me_em_lose << endl;
-  cout << "mm_me_ntwin = " << mm_me_ntwin << ", mm_ee_ntwin = " << mm_ee_ntwin << ", me_mm_ntwin = " << me_mm_ntwin << ", me_em_ntwin = " << me_em_ntwin << endl;
-  cout << "mm_me_ntlose = " << mm_me_ntlose << ", mm_ee_ntlose = " << mm_ee_ntlose << ", me_mm_ntlose = " << me_mm_ntlose << ", me_em_ntlose = " << me_em_ntlose << endl;
-  cout << "all_draw = " << all_draw << endl;
+  cout << "self_turn_self_view_win_count = " << self_turn_self_view_win_count
+       << ", self_turn_opponent_view_win_count = " << self_turn_opponent_view_win_count
+       << ", opponent_turn_self_view_win_count = " << opponent_turn_self_view_win_count
+       << ", opponent_turn_opponent_view_win_count = " << opponent_turn_opponent_view_win_count << endl;
+  cout << "self_turn_self_view_loss_count = " << self_turn_self_view_loss_count
+       << ", self_turn_opponent_view_loss_count = " << self_turn_opponent_view_loss_count
+       << ", opponent_turn_self_view_loss_count = " << opponent_turn_self_view_loss_count
+       << ", opponent_turn_opponent_view_loss_count = " << opponent_turn_opponent_view_loss_count << endl;
+  cout << "self_turn_self_view_no_win_count = " << self_turn_self_view_no_win_count
+       << ", self_turn_opponent_view_no_win_count = " << self_turn_opponent_view_no_win_count
+       << ", opponent_turn_self_view_no_win_count = " << opponent_turn_self_view_no_win_count
+       << ", opponent_turn_opponent_view_no_win_count = " << opponent_turn_opponent_view_no_win_count << endl;
+  cout << "self_turn_self_view_no_loss_count = " << self_turn_self_view_no_loss_count
+       << ", self_turn_opponent_view_no_loss_count = " << self_turn_opponent_view_no_loss_count
+       << ", opponent_turn_self_view_no_loss_count = " << opponent_turn_self_view_no_loss_count
+       << ", opponent_turn_opponent_view_no_loss_count = " << opponent_turn_opponent_view_no_loss_count << endl;
+  cout << "confirmed_draw_count = " << confirmed_draw_count << endl;
 
   cout << endl;
-  cout << "win positions by shortest win length:" << endl;
+  cout << "Win positions by shortest win length:" << endl;
   cout << "0 moves: " << std::setw(12) << win_length_counts[0] << " positions" << "          9 moves: " << std::setw(12) << win_length_counts[9] << " positions" << endl;
   cout << "1 move : " << std::setw(12) << win_length_counts[1] << " positions" << "         10 moves: " << std::setw(12) << win_length_counts[10] << " positions" << endl;
   cout << "2 moves: " << std::setw(12) << win_length_counts[2] << " positions" << "         11 moves: " << std::setw(12) << win_length_counts[11] << " positions" << endl;
@@ -790,7 +831,7 @@ int main(int argc, char *argv[]) {
   cout << "8 moves: " << std::setw(12) << win_length_counts[8] << " positions" << endl;
 
   cout << endl;
-  cout << "lose positions by longest lose length:" << endl;
+  cout << "Loss positions by longest lose length:" << endl;
   cout << "0 moves: " << std::setw(12) << loss_length_counts[0] << " positions" << "          9 moves: " << std::setw(12) << loss_length_counts[9] << " positions" << endl;
   cout << "1 move : " << std::setw(12) << loss_length_counts[1] << " positions" << "         10 moves: " << std::setw(12) << loss_length_counts[10] << " positions" << endl;
   cout << "2 moves: " << std::setw(12) << loss_length_counts[2] << " positions" << "         11 moves: " << std::setw(12) << loss_length_counts[11] << " positions" << endl;
@@ -803,16 +844,3 @@ int main(int argc, char *argv[]) {
   
   return 0;
 }
-
-//  g++ -O2 -Wall -pthread main.cpp zdd_yonoku.cpp posi_yonoku.cpp table.cpp -std=c++14 -o maketable.out 2>&1
-//  ./run_maktable.sh &
-//  ./run_maketable_b.sh &
-
-//  ./combtab.out 11 1 4 black_table black_table_11_4_0.bin black_table_11_4_1.bin black_table_11_4_2.bin black_table_11_4_3.bin db db db db db > 11_b_new2.txt 2>&1 &
-//  ./combtab.out 11 0 4 white_table white_table_11_4_0.bin white_table_11_4_1.bin white_table_11_4_2.bin white_table_11_4_3.bin db db db db db > 11_w_new2.txt 2>&1 &
-
-//  g++ -O2 -Wall -pthread CheckTable.cpp zdd_yonoku.cpp posi_yonoku.cpp table.cpp -std=c++14 -o checktable.out 2>&1
-//  ./checktable.out 11 1 black_table_11.bin db > check_table_11_w.txt 2>&1 &
-
-//  g++ -O2 -Wall -pthread notmaketable.cpp zdd_yonoku.cpp posi_yonoku.cpp table.cpp -std=c++14 -o notmaketable.out 2>&1
-//  ./notmaketable.out 11 1 black_table_12.bin white_table_12.bin db db > notmaketab.txt 2>&1 &
