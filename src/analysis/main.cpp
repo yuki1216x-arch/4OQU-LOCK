@@ -42,7 +42,7 @@ mutex zdd_mutex;
 
 bool workers_should_stop = false;   // Protected by queue_mutex.
 
-// Transfer a configuration and its child IDs between workers and the coodinator.
+// Transfer a configuration and its child IDs between workers and the coordinator.
 // Negative action counts encode results: -1/-4 win, -2/-5 loss,
 // -6 no-loss, -7 no-win, and -8 draw. Child IDs use -2 win, -3 loss, -10 draw
 // from the viewpoint used by make_action(), before any perspective inversion.
@@ -831,7 +831,7 @@ int main(int argc, char *argv[]) {
   cout << "8 moves: " << std::setw(12) << win_length_counts[8] << " positions" << endl;
 
   cout << endl;
-  cout << "Loss positions by longest lose length:" << endl;
+  cout << "Loss positions by longest loss length:" << endl;
   cout << "0 moves: " << std::setw(12) << loss_length_counts[0] << " positions" << "          9 moves: " << std::setw(12) << loss_length_counts[9] << " positions" << endl;
   cout << "1 move : " << std::setw(12) << loss_length_counts[1] << " positions" << "         10 moves: " << std::setw(12) << loss_length_counts[10] << " positions" << endl;
   cout << "2 moves: " << std::setw(12) << loss_length_counts[2] << " positions" << "         11 moves: " << std::setw(12) << loss_length_counts[11] << " positions" << endl;
