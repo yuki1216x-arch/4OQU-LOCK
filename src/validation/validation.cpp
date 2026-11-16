@@ -174,7 +174,7 @@ namespace {
     Action actions[1000]{};
     const int action_count = position.compute_actions(actions, viewpoint, iteration);
     if(action_count == -1) return true;
-    if(action_count == -2) return true;
+    if(action_count == -2) return false;
     if(action_count <= 0 || action_count > 1000)
       throw std::runtime_error("Invalid legal action count");
 
