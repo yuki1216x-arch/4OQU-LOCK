@@ -1,378 +1,301 @@
-#include <memory>
+// Validate the ZDD configuration order and ID round trip and validate parent-child outcome labels.
+#include <array>
+#include <cstdlib>
+#include <fstream>
 #include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <string>
 #include <vector>
-#include <exception>
-#include <cassert>
+
 #include "node.hpp"
 #include "table.hpp"
 #include "zdd_yonoku.hpp"
 #include "posi_yonoku.hpp"
 
-using std::unique_ptr;
-using std::make_unique;
-using std::vector;
+namespace {
+  constexpr int terminal_depth = 168;
+  constexpr std::size_t object_count = 32;
+  constexpr unsigned long long progress_interval = 100000000ULL;
 
-constexpr int MAX_DEPTH = 168; // 168
-
-const string base[2] = {"white_table", "black_table"};
-
-constexpr unsigned long long int placement_count[2][17] {
+  constexpr unsigned long long int configuration_counts[2][17] {
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
-    19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-    144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
-    666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
-    {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
-    19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
-    144799200ULL, 30925440ULL, 11571840ULL, 2932160ULL,
-    666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
-};
+	19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
+	144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
+	666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
+      {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
+	  19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
+	  144799200ULL, 30925440ULL, 11571840ULL, 2932160ULL,
+	  666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
+  };
 
-void search(Node_base& cur, vector<unsigned char>& array_objid, const ZDD& zdd, int depth, unsigned long long int& leaf_id, int nmove, int vision) {
-  if(depth == MAX_DEPTH) {
-    assert(array_objid.size() == 32);
-    unsigned char array_objid_zdd[32];
+  using ConfigurationId = unsigned long long;
+  using ObjectIds = std::vector<unsigned char>;
 
-    zdd.compute_array(leaf_id, array_objid_zdd, 32);
-    
-    for(size_t i = 0; i < array_objid.size(); i++) {
-      if(array_objid[i] != array_objid_zdd[i]) {
-	std::cerr << "zdd error, id = " << leaf_id << ", locid = " << i << endl;
-	std::cerr << "dfp = " << +array_objid[i] << ", zdd = " << +array_objid_zdd[i] << endl;
-	std::terminate();
-      }
-    }
-
-    unsigned long long int array_id = zdd.compute_id(array_objid.data(), array_objid.size());
-    if(leaf_id != array_id ) {
-      std::cerr << "id error, id = " << leaf_id << endl;
-      std::terminate();
-    }
-
-    if(leaf_id % 100000000 == 0) {
-      cout << "ok! id = " << leaf_id << ": ";
-      for(char x : array_objid) {
-	cout << +x;
-      }
-      cout << endl;
-    }
-    
-    leaf_id++;
-    return;
-  }
-
-  for(int x = 0; x < 2; x++) { // for each branch (0 and 1)
-    if(cur.IsNextLeaf0(depth, x, nmove)) { // if the x-branch leads to the 0-terminal node
-      /*cout << depth << ", " << x << "false: ";
-      for(size_t i = 0; i < array_objid.size(); i++) {
-	cout << array_objid[i];
-      }
-      cout << endl;*/
-      continue;
-    } else { // if current node has children
-      std::unique_ptr<Node_base> c;
-      if(vision == 0) c = std::make_unique<Node_White>(cur, x);
-      else c = std::make_unique<Node_Black>(cur, x);
-
-      if(x == 0) {
-	search(*c, array_objid, zdd, depth + 1, leaf_id, nmove, vision); // left
-      } else {
-	array_objid.push_back(cur.get_loc_stateid());
-	search(*c, array_objid, zdd, depth + 1, leaf_id, nmove, vision); // right
-	array_objid.pop_back();
-      }
-    }
-  }
-  return;
-}
-
-bool detect_invalid_transition_player(int parent_val, int child_val[1000][12], int nchild, int num_of_un, int iteration, int vision) {
-  assert(parent_val == v_win || parent_val == v_draw || parent_val == v_notlose);
-
-  assert(num_of_un > 0 && num_of_un <= 12);
-  assert(nchild > 0 && nchild < 1000);
-  
-  if(parent_val == v_win) { // win
-    if(iteration % 2 == vision) {
-      for(int j = 0; j < nchild; j++) {
-	int num_win = 0;
-	for(int m = 0; m < num_of_un; m++) {
-	  if(child_val[j][m] == v_win) num_win++;
-	}
-	if(num_win == num_of_un) return false;
-      }
-      return true;
-    } else {
-      for(int j = 0; j < nchild; j++) {
-	for(int m = 0; m < num_of_un; m++) {
-	  if(child_val[j][m] != v_win) return true;
-	}
-      }
+  bool read_arguments(int argc, char* argv[], int& iteration, int& viewpoint) {
+    if(argc < 3 || argc > 4 || (argc == 4 && std::string(argv[3]) != "--labels-only")  || (std::string(argv[2]) != "0" && std::string(argv[2]) != "1")) {
+      std::cerr << "Usage: " << argv[0] << " ITERATION VIEWPOINT [--labels-only] (0: White; 1: Black)\n";
       return false;
     }
-  } else { // not lose or draw
-    assert(parent_val == v_notlose || parent_val == v_draw);
-    if(iteration % 2 == vision) {
-      for(int j = 0; j < nchild; j++) {
-	int num_win = 0, num_notlose = 0;
-	for(int m = 0; m < num_of_un; m++) {
-	  if(child_val[j][m] == v_win) num_win++, num_notlose++;
-	  else if(child_val[j][m] == v_notlose || child_val[j][m] == v_draw) num_notlose++;
-	}
-	if(num_win != num_of_un && num_notlose == num_of_un) return false;
-      }
-      return true;
-    } else {
-      int num_win = 0;
-      for(int j = 0; j < nchild; j++) {
-	for(int m = 0; m < num_of_un; m++) {
-	  if(child_val[j][m] != v_win && child_val[j][m] != v_notlose && child_val[j][m] != v_draw) {
-	    return true;
-	  }
-	  if(child_val[j][m] == v_win) num_win++;
-	}
-      }
-      if(num_win == nchild * num_of_un) {
-	return true;
-      }
+
+    char* end = nullptr;
+    const long value = std::strtol(argv[1], &end, 10);
+    if(end == argv[1] || *end || value < 0 || value > 15) {
+      std::cerr << "Iteration must be between 0 and 15.\n";
       return false;
     }
-  }
-}
 
-bool detect_invalid_transition_opponent(int parent_val, int child_val[12][1000][12], int num_of_un, int nchild_opp, int num_of_un_opp, int iteration, int vision) {
-  assert(parent_val == v_lose || parent_val == v_draw || parent_val == v_notwin);
-
-  assert(num_of_un > 0 && num_of_un <= 12);
-  assert(nchild_opp > 0 && nchild_opp < 1000);
-  assert(num_of_un_opp > 0 && num_of_un_opp <= 12);
-  
-  if(parent_val == v_lose) { // lose
-    int num_lose = 0;
-    for(int j = 0; j < num_of_un; j++) {
-      bool is_lose = true;
-      for(int k = 0; k < nchild_opp; k++) {
-	for(int m = 0; m < num_of_un_opp; m++) {
-	  if(child_val[j][k][m] != v_lose){
-	    is_lose = false;
-	    break;
-	  }
-	}
-	if(iteration % 2 != vision) {
-	  if(is_lose) {
-	    num_lose++;
-	    break;
-	  }
-	  is_lose = true;
-	} else {
-	  if(!is_lose) return true;
-	}
-      }
-    }
-    if(iteration % 2 != vision) {
-      if(num_lose == num_of_un) return false;
-      else return true;
-    }
-    return false;
-  } else { // not win or draw
-    assert(parent_val == v_notwin || parent_val == v_draw);
-    int num_notwin = 0;
-    for(int j = 0; j < num_of_un; j++) {
-      int count_notwin = 0, count_lose = 0;
-      for(int k = 0; k < nchild_opp; k++) {
-	bool is_notwin = true, is_lose = true;
-	for(int m = 0; m < num_of_un_opp; m++) {
-	  int x = child_val[j][k][m];
-	  if(x != v_lose) {
-	    is_lose = false;
-	    if(x != v_draw && x != v_notwin) {
-	      is_notwin = false;
-	      break;
-	    }
-	  }
-	}
-	if(is_lose) count_lose++;
-	if(is_notwin) count_notwin++;
-      }
-      if(iteration % 2 != vision) {
-	if(count_notwin > 0 && count_lose == 0) num_notwin++;
-      } else {
-	if(count_notwin == nchild_opp && count_lose != nchild_opp) num_notwin++;
-      }
-    }
-    if(num_notwin == num_of_un) return false;
+    iteration = static_cast<int>(value);
+    viewpoint = argv[2][0] - '0';
     return true;
   }
-}
 
-int main(int argc, char *argv[]) {
-  int iteration = atoi(argv[1]); // number of moves
-  int vision = atoi(argv[2]); // player perspective (0: white, 1: black)
-  string base_filename = base[vision];
-  string base_filename_opp = base[1-vision];
-  string read_filename_str = "data/db/" + base_filename + "_" + std::to_string(iteration) + ".bin";
-  string read_filename_str_child = "data/db/" + base_filename + "_" + std::to_string(iteration+1) + ".bin";
-  string read_filename_str_child_opp = "data/db/" + base_filename_opp + "_" + std::to_string(iteration+1) + ".bin";
-  unsigned long long int id = 0;
-  
-  unique_ptr<ZDD> zdd_parent = make_unique<ZDD>(vision, iteration);
-  unique_ptr<ZDD> zdd_child, zdd_child_opp;
-  if(iteration < 15) {
-    zdd_child = make_unique<ZDD>(vision, iteration + 1);
-    zdd_child_opp = make_unique<ZDD>(1 - vision, iteration + 1);
-  } else {
-    zdd_child = make_unique<ZDD>(vision, iteration);
-    zdd_child_opp = make_unique<ZDD>(1 - vision, iteration);
-  }
-  
-  {
-    unique_ptr<Node_base> root;
-    if(vision == 0) root = make_unique<Node_White>();
-    else root = make_unique<Node_Black>();
-  
-    vector<unsigned char> array_objid;
-  
-    search(*root, array_objid, *zdd_parent, 0, id, iteration, vision);
-  }
-
-  cout << "leaf num: " << id << endl;
-
-  if(vision == 0) cout << "zdd is ok. (iteration : " << iteration << ", vision : white)" << endl;
-  else cout << "zdd is ok. (iteration : " << iteration << ", vision: black)" << endl;
-
-  return 0;
-
-  // from here, verify parent-child relationships
-  size_t bits_per_entry, child_bits_per_entry;
-  if(iteration > 12) bits_per_entry = 4, child_bits_per_entry = 4;
-  else if(iteration > 11) bits_per_entry = 8, child_bits_per_entry = 4;
-  else bits_per_entry = 8, child_bits_per_entry = 8;
-  
-  Table parent_table(16 - iteration, read_filename_str.c_str(), bits_per_entry, placement_count[vision][16 - iteration]); // parent talbe
-  Table child_table(15 - iteration, read_filename_str_child.c_str(), child_bits_per_entry, placement_count[vision][15 - iteration]); // child table
-  Table opp_child_table(15 - iteration, read_filename_str_child_opp.c_str(), child_bits_per_entry, placement_count[1 - vision][15 - iteration]); // child table (opponent's perspective)
-  Posi p;
-  bool is_error = false;
-
-  for(unsigned long long int i = 0ULL; i < placement_count[vision][16 - iteration]; i++) {
-    p.make_posi(i, *zdd_parent);
-    Action actions[1000] = {};
-    unsigned char board_belief[12][46] = {};
-    int nchild = p.compute_actions(actions, vision, iteration);
-    int num_of_un = p.getunknowninfo(board_belief, vision, iteration);
-    int nchild_opp = 0, num_of_un_opp = 0;
-    
-    int parent_val = parent_table.get(i);
-    if(parent_val <= 0 || parent_val > 5) std::cout << "parent = " << parent_val << endl;
-    assert(parent_val > 0 && parent_val <= 5);
-
-    if(nchild > 0) {
-      if(parent_val == v_win || parent_val == v_notlose || parent_val == v_draw) {
-	int child_val[nchild][12] = {};
-	for(int j = 0; j < nchild; j++) {
-	  for(int m = 0; m < num_of_un; m++) {
-	    p.make_posi_n(board_belief, m);
-	    int board_check = p.make_action(actions[j], vision, iteration);
-	    if(board_check == 0) { // Non-terminal node
-	      p.make_posi_myself();
-	      child_val[j][m] = child_table.get(p.getzddnum(*zdd_child)); // retrieve the value from the child's table
-	    } else if(board_check == 2) child_val[j][m] = v_win; // win (player's perspective)
-	    else if(board_check == 3) child_val[j][m] = v_lose; // lose (player's perspective)
-	    else {
-	      assert(board_check == 10); // draw
-	      child_val[j][m] = v_draw;
-	    }
-	  }
-	  p.make_posi(i, *zdd_parent); //undo
-	}
-	if(detect_invalid_transition_player(parent_val, child_val, nchild, num_of_un, iteration, vision)) {
-	  is_error = true;
-	  std::cout << "label error1, id = " << i << ", parent = " << parent_val << endl;
-	  std::cout << "child = ";
-	  for(int j = 0; j < nchild; j++) {
-	    for(int m = 0; m < num_of_un; m++) {
-	      std::cout << child_val[j][m];
-	    }
-	    if(j != nchild - 1) std::cerr << " ";
-	  }
-	  std::cout << endl;
-	  p.make_posi(i, *zdd_parent);
-	  p.print();
-	  break;
-	}
-      }
-      if(parent_val == v_lose || parent_val == v_notwin || parent_val == v_draw) {
-	int child_val_opp[num_of_un][1000][12] = {};
-	for(int j = 0; j < num_of_un; j++) {
-	  Action actions_opp[1000] = {};
-	  unsigned char board_belief_opp[12][46] = {};
-	  p.make_posi_n(board_belief, j);
-	  p.make_posi_opponent();
-	  nchild_opp = p.compute_actions(actions_opp, 1 - vision, iteration);
-	  num_of_un_opp = p.getunknowninfo(board_belief_opp, 1 - vision, iteration);
-	  assert(nchild_opp < 1000 && num_of_un_opp <= 12);
-	  for(int k = 0; k < nchild_opp; k++) {
-	    for(int m = 0; m < num_of_un_opp; m++) {
-	      p.make_posi_n(board_belief_opp, m);
-	      int board_check = p.make_action(actions_opp[k], 1 - vision, iteration);
-	      if(board_check == 0) { // Non-terminal node
-		p.make_posi_opponent();
-		child_val_opp[j][k][m] = opp_child_table.get(p.getzddnum(*zdd_child_opp)); // retrieve the value from the child's table
-	      } else if(board_check == 2) child_val_opp[j][k][m] = v_lose; // lose(opponent's perspective)
-	      else if(board_check == 3) child_val_opp[j][k][m] = v_win; // win(opponent's perspective)
-	      else {
-		assert(board_check == 10); // draw
-		child_val_opp[j][k][m] = v_draw;
-	      }
-	    }
-	    p.make_posi(i, *zdd_parent);
-	  }
-	}
-	if(detect_invalid_transition_opponent(parent_val, child_val_opp, num_of_un, nchild_opp, num_of_un_opp, iteration, vision)) {
-	  is_error = true;
-	  std::cout << "label error2, id = " << i << ", parent = " << parent_val << endl;
-	  std::cout << "child = ";
-	  for(int j = 0; j < num_of_un; j++) {
-	    for(int k = 0; k < nchild_opp; k++) {
-	      for(int m = 0; m < num_of_un_opp; m++) {
-		std::cout << child_val_opp[j][k][m];
-	      }
-	      if(k != nchild_opp - 1) std::cerr << " ";	      
-	    }
-	    if(j != num_of_un - 1) std::cerr << ": ";
-	  }
-	  std::cout << endl;
-	  p.make_posi(i, *zdd_parent);
-	  p.print();
-	  break;
-	}
-      }
-    } else if(nchild == -1) {
-      if(parent_val != 1) {
-	is_error = true;
-	std::cout << "terminal label error1, id = " << i << ", parent = " << parent_val << ", nchild = "<< nchild << endl;
-	p.make_posi(i, *zdd_parent);
-	p.print();
-	std::cout << "vision = " << vision << ", iteration = " << iteration << endl;
-	break;
-      }
-    } else if(nchild == -2) {
-      if(parent_val != 2) {
-	is_error = true;
-	std::cout << "terminal label error2, id = " << i << ", parent = " << parent_val << ", nchild = " << nchild << endl;
-	p.make_posi(i, *zdd_parent);
-	p.print();
-	break;
-      }
-    } else {
-      is_error = true;
-      std::cout << "value error: exception, id =" << i << endl;
-      std::cout << "nchild = " << nchild << ", parent = " << parent_val << endl;
-      p.make_posi(i, *zdd_parent);
-      p.print();
-      break;
+  bool validate_configuration(ObjectIds& enumerated_objects, const ZDD& zdd, ConfigurationId configuration_id) {
+    if(enumerated_objects.size() != object_count) {
+      std::cerr << "[error] Unexpected object count for configuration "
+		<< configuration_id << ": " << enumerated_objects.size() << '\n';
+      return false;
     }
-    if(i % 100000000 == 0) std::cout << "label ok! id = " << i << endl;
+
+    std::array<unsigned char, object_count> decoded_objects{};
+    zdd.compute_array(configuration_id, decoded_objects.data(), decoded_objects.size());
+    for(std::size_t object_index = 0; object_index < object_count; ++object_index) {
+      if(enumerated_objects[object_index] != decoded_objects[object_index]) {
+	std::cerr << "[error] ZDD decoding mismatch for configuration " << configuration_id
+		  << ", object index " << object_index
+		  << ": expected " << +enumerated_objects[object_index]
+		  << ", got " << +decoded_objects[object_index] << '\n';
+	return false;
+      }
+    }
+
+    const auto encoded_id = zdd.compute_id(enumerated_objects.data(), enumerated_objects.size());
+    if(encoded_id != configuration_id) {
+      std::cerr << "[error] ZDD encoding mismatch: expected ID " << configuration_id
+		<< ", got " << encoded_id << '\n';
+      return false;
+    }
+
+    if(configuration_id % progress_interval == 0) {
+      std::cout << "[progress] Configuration " << configuration_id << " verified: ";
+      for(unsigned char object_id : enumerated_objects) std::cout << +object_id;
+      std::cout << std::endl;
+    }
+    return true;
   }
-  if(is_error) std::terminate();
-  return 0;
+
+  bool validate_subtree(Node_base& node, ObjectIds& enumerated_objects, const ZDD& zdd, int depth, ConfigurationId& next_configuration_id, int iteration, int viewpoint) {
+    if(depth == terminal_depth) {
+      if(!validate_configuration(enumerated_objects, zdd, next_configuration_id)) return false;
+      ++next_configuration_id;
+      return true;
+    }
+
+    // Visit branch 0 before branch 1 to match the ZDD's configuration order.
+    for(int branch = 0; branch < 2; ++branch) {
+      if(node.IsNextLeaf0(depth, branch, iteration)) continue;
+
+      std::unique_ptr<Node_base> child;
+      if(viewpoint == 0) child = std::make_unique<Node_White>(node, branch);
+      else child = std::make_unique<Node_Black>(node, branch);
+
+      // Only branch 1 selects the current object's state.
+      if(branch == 1) enumerated_objects.push_back(node.get_loc_stateid());
+      const bool valid = validate_subtree(*child, enumerated_objects, zdd, depth + 1, next_configuration_id, iteration, viewpoint);
+      if(branch == 1) enumerated_objects.pop_back();
+      if(!valid) return false;
+    }
+    return true;
+  }
+  using CompatibleBoards = unsigned char[12][46];
+
+  struct ChildLayer {
+    std::unique_ptr<ZDD> zdd;
+    std::unique_ptr<Table> table;
+    ConfigurationId configuration_count = 0;
+  };
+
+  std::unique_ptr<Table> load_result_table(int iteration, int viewpoint) {
+    const std::string path = std::string("data/db/") + (viewpoint == 0 ? "white_table_" : "black_table_") + std::to_string(iteration) + ".bin";
+    const ConfigurationId count = configuration_counts[viewpoint][16 - iteration];
+    const std::size_t bits_per_entry = iteration > 12 ? 4 : 8;
+    std::ifstream input(path, std::ios::binary | std::ios::ate);
+    if(!input) throw std::runtime_error("Cannot open result database: " + path);
+    const auto expected_size = static_cast<std::streamoff>(8 + (count * bits_per_entry + 7) / 8);
+    if(input.tellg() != expected_size)
+      throw std::runtime_error("Unexpected result database size: " + path);
+
+    input.seekg(0);
+    std::array<unsigned char, 8> header{};
+    if(!input.read(reinterpret_cast<char*>(header.data()), header.size()))
+      throw std::runtime_error("Cannot read result database header: " + path);
+    ConfigurationId stored_count = 0;
+    for(int i = 7; i >= 2; --i) stored_count = (stored_count << 8) | header[i];
+    if(header[0] != 0 || header[1] != 16 - iteration || stored_count != count)
+      throw std::runtime_error("Incorrect result database header: " + path);
+
+    return std::make_unique<Table>(16 - iteration, path.c_str(), bits_per_entry, count);
+  }
+
+  unsigned flip_label(unsigned label) {
+    switch (label) {
+    case v_win: return v_lose;
+    case v_lose: return v_win;
+    case v_notwin: return v_notlose;
+    case v_notlose: return v_notwin;
+    default: return label;
+    }
+  }
+
+  unsigned evaluate_child(Posi position, const Action& action, int iteration, int source_viewpoint, int child_viewpoint, const ChildLayer& child) {
+    const int result = position.make_action(action, source_viewpoint, iteration);
+    if(result == 2) return v_win;
+    if(result == 3) return v_lose;
+    if(result == 10) return v_draw;
+    if(result != 0 || !child.table)
+      throw std::runtime_error("Unexpected action result when evaluating a child");
+
+    if(source_viewpoint == child_viewpoint) position.make_posi_myself();
+    else position.make_posi_opponent();
+    const auto child_id = position.getzddnum(*child.zdd);
+    if(child_id >= child.configuration_count)
+      throw std::runtime_error("Child ID outside the result table: " + std::to_string(child_id));
+
+    // get_value() extracts the outcome without the stored game length.
+    const unsigned label = child.table->get_value(child_id);
+    if(label > v_notwin) throw std::runtime_error("Invalid child outcome label");
+    return source_viewpoint == child_viewpoint ? label : flip_label(label);
+  }
+
+  // A plan must satisfy the requested outcome for every compatible board.
+  // On the viewpoint's turn one qualifying action is enough; otherwise all are required.
+  bool supports_outcome(Posi position, int iteration, int viewpoint, int child_viewpoint,
+			const ChildLayer& child, bool require_win) {
+    Action actions[1000]{};
+    const int action_count = position.compute_actions(actions, viewpoint, iteration);
+    if(action_count == -1) return true;
+    if(action_count == -2) return true;
+    if(action_count <= 0 || action_count > 1000)
+      throw std::runtime_error("Invalid legal action count");
+
+    CompatibleBoards boards{};
+    const int board_count = position.getunknowninfo(boards, viewpoint, iteration);
+    if(board_count <= 0 || board_count > 12)
+      throw std::runtime_error("Invalid compatible board count");
+
+    const bool viewpoint_to_move = iteration % 2 == viewpoint;
+    for(int action_index = 0; action_index < action_count; ++action_index) {
+      bool supported = true;
+      for(int board_index = 0; board_index < board_count; ++board_index) {
+	position.make_posi_n(boards, board_index);
+	const unsigned label = evaluate_child(position, actions[action_index], iteration, viewpoint, child_viewpoint, child);
+	if(label != v_win && (require_win || (label != v_notlose && label != v_draw))) {
+	  supported = false;
+	  break;
+	}
+      }
+      if(supported == viewpoint_to_move) return supported;
+    }
+    return !viewpoint_to_move;
+  }
+
+  bool supports_opponent_outcome(Posi position, int iteration, int viewpoint, int child_viewpoint, const ChildLayer& child, bool require_win) {
+    CompatibleBoards boards{};
+    const int board_count = position.getunknowninfo(boards, viewpoint, iteration);
+    if(board_count <= 0 || board_count > 12)
+      throw std::runtime_error("Invalid compatible board count");
+
+    // Check each compatible board from the opponent's information perspective.
+    for(int board_index = 0; board_index < board_count; ++board_index) {
+      position.make_posi_n(boards, board_index);
+      position.make_posi_opponent();
+      if(!supports_outcome(position, iteration, 1 - viewpoint, child_viewpoint, child, require_win))
+	return false;
+    }
+    return true;
+  }
+
+  bool validate_labels(int iteration, int viewpoint, const ZDD& parent_zdd) {
+    const auto parent = load_result_table(iteration, viewpoint);
+    std::array<ChildLayer, 2> children;
+    // At turn 15, actions end the game; no turn-16 table is required.
+    if(iteration < 15) {
+      for(int view = 0; view < 2; ++view) children[view].table = load_result_table(iteration + 1, view);
+      for(int view = 0; view < 2; ++view) {
+	children[view].configuration_count = configuration_counts[view][15 - iteration];
+	children[view].zdd = std::make_unique<ZDD>(view, iteration + 1);
+      }
+    }
+
+    ConfigurationId checked_count = 0;
+    ConfigurationId unknown_count = 0;
+    const auto count = configuration_counts[viewpoint][16 - iteration];
+    for(ConfigurationId id = 0; id < count; ++id) {
+      const unsigned label = parent->get_value(id);
+      Posi position;
+      position.make_posi(id, parent_zdd);
+      const int terminal = position.TerminalTest(viewpoint, iteration);
+      bool valid = false;
+      try {
+	if(terminal == 2 || terminal == 3) {
+	  valid = label == (terminal == 2 ? v_win : v_lose);
+	} else if(label == v_unknown) {
+	  ++unknown_count;
+	  continue;
+	} else if(label <= v_notwin) {
+	  bool supports_self = false;
+	  bool supports_opponent = false;
+	  // A proof may use either child table; each proof uses one viewpoint throughout.
+	  for(int child_view = 0; child_view < 2; ++child_view) {
+	    if(!supports_self && (label == v_win || label == v_notlose || label == v_draw))
+	      supports_self = supports_outcome(position, iteration, viewpoint, child_view, children[child_view], label == v_win);
+	    if(!supports_opponent && (label == v_lose || label == v_notwin || label == v_draw))
+	      supports_opponent = supports_opponent_outcome(position, iteration, viewpoint, child_view, children[child_view], label == v_lose);
+	  }
+	  valid = label == v_draw ? supports_self && supports_opponent : supports_self || supports_opponent;
+	}
+      } catch (const std::runtime_error& error) {
+	std::cerr << "[error] Configuration " << id << ": " << error.what() << '\n';
+	return false;
+      }
+      if(!valid) {
+	std::cerr << "[error] Unsupported parent label " << label << " at configuration " << id
+		  << " (iteration " << iteration << ", viewpoint " << viewpoint << ")\n";
+	return false;
+      }
+      ++checked_count;
+      if(id % progress_interval == 0)
+	std::cout << "[progress] Parent label verified: " << id << std::endl;
+    }
+    std::cout << "Parent-child label validation passed: " << checked_count
+	      << " checked, " << unknown_count << " unknown skipped.\n";
+    return true;
+  }
+}   // namespace
+
+int main(int argc, char* argv[]) {
+  int iteration, viewpoint;
+  if(!read_arguments(argc, argv, iteration, viewpoint)) return 1;
+
+  try {
+    const ZDD zdd(viewpoint, iteration);
+    if(argc != 4) {
+      std::unique_ptr<Node_base> root;
+      if(viewpoint == 0) root = std::make_unique<Node_White>();
+      else root = std::make_unique<Node_Black>();
+  
+      ObjectIds enumerated_objects;
+      enumerated_objects.reserve(object_count);
+      ConfigurationId verified_count = 0;
+      if(!validate_subtree(*root, enumerated_objects, zdd, 0, verified_count, iteration, viewpoint)) return 1;
+
+      std::cout << "ZDD validation passed: iteration " << iteration
+		<< ", viewpoint " << (viewpoint == 0 ? "White" : "Black")
+		<< ", configurations " << verified_count << '\n';
+    }
+    return validate_labels(iteration, viewpoint, zdd) ? 0 : 1;
+  } catch (const std::exception& error) {
+    std::cerr << "[error] " << error.what() << '\n';
+    return 1;
+  }
 }
