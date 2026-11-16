@@ -40,7 +40,7 @@ namespace {
 int main(int argc, char* argv[]) {
   // The arguments are the iteration and the database viewpoint.
   const int iteration = std::atoi(argv[1]);
-  const int viewpoint = std::atoi(argv[2]);   // 0: White; 2: Black.
+  const int viewpoint = std::atoi(argv[2]);   // 0: White; 1: Black.
   const int remaining_placement_count = 16 - iteration;
   const auto configuration_count = configuration_counts[viewpoint][remaining_placement_count];
 

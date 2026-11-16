@@ -1,162 +1,123 @@
-#include <memory>
-#include <chrono>
-#include <random>
-#include <iostream>
+#include <array>
+#include <cstdint>
+#include <cstdlib>
 #include <fstream>
+#include <iostream>
 #include <sstream>
-#include <vector>
+#include <stdexcept>
+#include <string>
+
 #include "table.hpp"
 #include "zdd_yonoku.hpp"
 #include "posi_yonoku.hpp"
 
-using std::unique_ptr;
-using std::make_unique;
-using std::mt19937_64;
-using std::uniform_int_distribution;
-using std::chrono::high_resolution_clock;
-using std::to_string;
-
-std::vector<string> split(const string text, const char delimiter='/') {
-  std::vector<string> columns;
-
-  if (text.empty()) {
-    return columns;
-  }
-
-  std::stringstream stream{text};
-  string buff;
-  while (getline(stream, buff, delimiter)) {
-    columns.push_back(buff);
-  }
-  return columns;
-}
-
-/*struct LocInfo {
-  unsigned int height;
-  char cube[2];   //unsigned int idx;
-  };*/
-
-constexpr unsigned long long int placement_count[2][17] {
+namespace {
+  constexpr unsigned long long int configuration_counts[2][17] {
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
-    19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-    144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
-    666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
-    {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
-    19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
-    144799200ULL, 30925440ULL, 11571840ULL, 2932160ULL,
-    666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
-};
+	19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
+	144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
+	666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
+      {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
+	  19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
+	  144799200ULL, 30925440ULL, 11571840ULL, 2932160ULL,
+	  666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
+  };
 
-constexpr LocInfo tbl_objid2locinfo[7] = {
-					  { 0, {'.', '.'} },
-					  { 1, {'W', '.'} },
-					  { 1, {'B', '.'} },
-					  { 2, {'W', 'W'} },
-					  { 2, {'W', 'B'} },
-					  { 2, {'B', 'W'} },
-					  { 2, {'B', 'B'} }
-};
-
-constexpr LocInfo tbl_objid2locinfo2[4] = {
-					   { 0, {'.', '.'} },
-					   { 1, {'W', '.'} },
-					   { 1, {'B', '.'} },
-					   { 1, {'U', '.'} }
-};
-
-const string base[2] = {"white_table", "black_table"};
-
-unsigned long long int getzddnum(const ZDD& zdd, string fen_str) noexcept {
-  unsigned char array_objid[32] = {};
-  std::vector<string> cols = split(fen_str);
-  int array_objid_iter = 0;
-  assert(cols.size() == 6);
-
-  for (std::size_t i = 0; i < cols.size(); i++) {
-    for (std::size_t j = 0; j < cols[i].size(); j++) {
-      if (i == 0 || i == 5) {
-	assert((array_objid_iter >= 0 && array_objid_iter <= 7) || (array_objid_iter >= 24 && array_objid_iter <= 31));
-	if (cols[i][j] == tbl_objid2locinfo2[0].cube[0]) array_objid[array_objid_iter] = 0;
-	else if (cols[i][j] == tbl_objid2locinfo2[1].cube[0]) array_objid[array_objid_iter] = 1;
-	else if (cols[i][j] == tbl_objid2locinfo2[2].cube[0]) array_objid[array_objid_iter] = 2;
-	else {
-	  assert(cols[i][j] == tbl_objid2locinfo2[3].cube[0]);
-	  array_objid[array_objid_iter] = 3;
-	}
-	array_objid_iter++;
-      } else {
-	assert(i >= 1 && i <= 4);
-	assert(array_objid_iter >= 8 && array_objid_iter <= 23);
-	if (cols[i][j] != tbl_objid2locinfo[1].cube[0] && cols[i][j] != tbl_objid2locinfo[2].cube[0]) {
-	  assert(cols[i][j] - '0' <= 4 - array_objid_iter % 4);
-	  for (int k = cols[i][j] - '0'; k > 0; k--) {
-	    array_objid[array_objid_iter] = 0;
-	    array_objid_iter++;
-	  }
+  // Decode the two reserve rows and four board rows into the ZDD's object order.
+  std::array<unsigned char, 32> parse_position(const std::string& notation) {
+    std::array<unsigned char, 32> objects{};
+    std::istringstream input(notation);
+    std::string row;
+    std::size_t offset = 0;
+    for(int row_index = 0; row_index < 6; ++row_index) {
+      if(!std::getline(input, row, '/')) throw std::runtime_error("Expected six position rows.");
+      const bool reserve = row_index == 0 || row_index == 5;
+      const auto row_end = offset + (reserve ? 8 : 4);
+      for(std::size_t i = 0; i < row.size(); ++i) {
+	const char piece = row[i];
+	if(offset >= row_end) throw std::runtime_error("Position row is too wide.");
+	if(reserve) {
+	  const auto code = std::string(".WBU").find(piece);
+	  if(code == std::string::npos) throw std::runtime_error("Invalid reserve piece.");
+	  objects[offset++] = code;
+	} else if(piece >= '1' && piece <= '4') {
+	  offset += piece - '0';
 	} else {
-	  assert(cols[i].size() > j+1);
-	  if (cols[i][j] == tbl_objid2locinfo[1].cube[0] && cols[i][j+1] == tbl_objid2locinfo[1].cube[1]) array_objid[array_objid_iter] = 1;
-	  else if (cols[i][j] == tbl_objid2locinfo[2].cube[0] && cols[i][j+1] == tbl_objid2locinfo[2].cube[1]) array_objid[array_objid_iter] = 2;
-	  else if (cols[i][j] == tbl_objid2locinfo[3].cube[0] && cols[i][j+1] == tbl_objid2locinfo[3].cube[1]) array_objid[array_objid_iter] = 3;
-	  else if (cols[i][j] == tbl_objid2locinfo[4].cube[0] && cols[i][j+1] == tbl_objid2locinfo[4].cube[1]) array_objid[array_objid_iter] = 4;
-	  else if (cols[i][j] == tbl_objid2locinfo[5].cube[0] && cols[i][j+1] == tbl_objid2locinfo[5].cube[1]) array_objid[array_objid_iter] = 5;
-	  else {
-	    assert(cols[i][j] == tbl_objid2locinfo[6].cube[0] && cols[i][j+1] == tbl_objid2locinfo[6].cube[1]);
-	    array_objid[array_objid_iter] = 6;
-	  }
-	  array_objid_iter++, j++;
+	  if(i + 1 == row.size()) throw std::runtime_error("Incomplete board cell.");
+	  const auto cell = row.substr(i, 2);
+	  static const std::array<std::string, 6> cells{{"W.", "B.", "WW", "WB", "BW", "BB"}};
+	  std::size_t code = 0;
+	  while(code < cells.size() && cells[code] != cell) ++code;
+	  if(code == cells.size()) throw std::runtime_error("Invalid board cell.");
+	  objects[offset++] = code + 1;
+	  ++i;
 	}
       }
+      if(offset != row_end) throw std::runtime_error("Incorrect position row width.");
     }
+    if(input.peek() != std::char_traits<char>::eof() || notation.back() == '/')
+      throw std::runtime_error("Expected exactly six position rows.");
+    return objects;
   }
-  assert(array_objid_iter == 32);
-  return zdd.compute_id(array_objid, 32);
-}
 
-//---.exe iter read_file write_file
-int main(int argc, char *argv[]) {
-  int iteration = atoi(argv[1]); // number of moves
-  int vision = atoi(argv[2]); // 0: white's perspective, 1: black's perspective
-  // unsigned long long int parent_table_size64 = (placement_count[vision][16 - iteration] + 15ULL) / 16ULL; // parent table size
-  string base_filename = base[vision];
-  string read_filename_str = "data/db/" + base_filename + '_' + to_string(iteration) + ".bin";
-  
-  unique_ptr<ZDD> zdd_check = make_unique<ZDD>(vision, iteration);
-  Posi p;
+  unsigned read_label(const std::string& path, int iteration, std::uint64_t configuration_id,
+		      std::uint64_t configuration_count) {
+    std::ifstream file(path, std::ios::binary);
+    std::array<unsigned char, 8> header{};
+    if(!file.read(reinterpret_cast<char*>(header.data()), header.size()))
+      throw std::runtime_error("Cannot read database header: " + path);
+    std::uint64_t stored_count = 0;
+    for(int i = 7; i >= 2; --i) stored_count = (stored_count << 8) | header[i];
+    if(header[0] != 0 || header[1] != 16 - iteration || stored_count != configuration_count)
+      throw std::runtime_error("Database header does not match the selected table: " + path);
 
-  unsigned long long int position_id = getzddnum(*zdd_check, argv[3]);
-  unsigned long long int seek_id = (position_id / 2) + 1;
+    // Read the requested entry after the header, then remove the game-length bits.
+    const bool packed_nibbles = iteration > 12;
+    file.seekg(header.size() + (packed_nibbles ? configuration_id / 2 : configuration_id));
+    const int byte = file.get();
+    if(byte == std::char_traits<char>::eof())
+      throw std::runtime_error("Cannot read database entry: " + path);
+    return packed_nibbles ? (byte >> (4 * (configuration_id % 2))) & 3 : byte & 7;
+  }
+}   // namespace
 
-  std::cout << "id of this configuration：" << position_id << endl;
-
-  p.make_posi(position_id, *zdd_check);
-  p.print();
-
-  std::ifstream file(read_filename_str, std::ios::binary);
-  if (!file) {
-    std::cerr << "Failed to open the file\n";
+int main(int argc, char* argv[]) {
+  if(argc != 4 || (std::string(argv[2]) != "0" && std::string(argv[2]) != "1")) {
+    std::cerr << "Usage: " << argv[0] << " ITERATION VIEWPOINT POSITION (0: White, 1: Black)\n";
     return 1;
   }
-  
-  file.seekg(static_cast<std::streamoff>(seek_id)); // ← byte offset to read (0-based)
+  char* end = nullptr;
+  const long iteration_arg = std::strtol(argv[1], &end, 10);
+  if(end == argv[1] || *end || iteration_arg < 0 || iteration_arg > 15) {
+    std::cerr << "Iteration must be between 0 and 15.\n";
+    return 1;
+  }
+  const int iteration = static_cast<int>(iteration_arg);
+  int viewpoint = argv[2][0] - '0';
+  try {
+    auto objects = parse_position(argv[3]);
+    const ZDD zdd(viewpoint, iteration);
+    const auto configuration_id = zdd.compute_id(objects.data(), objects.size());
+    const auto configuration_count = configuration_counts[viewpoint][16 - iteration];
+    if(configuration_id >= configuration_count)
+      throw std::runtime_error("Position is outside the selected table.");
+    // Reject a well-formed position that is absent from the selected ZDD.
+    std::array<unsigned char, 32> decode{};
+    zdd.compute_array(configuration_id, decode.data(), decode.size());
+    if(decode != objects) throw std::runtime_error("Position is outside the selected table.");
+    const std::string database_path = std::string("data/db/") +
+      (viewpoint == 0 ? "white_table_" : "black_table_") + std::to_string(iteration) + ".bin";
+    const auto label = read_label(database_path, iteration, configuration_id, configuration_count);
+    static const std::array<const char*, 6> label_names{{"unknown", "win", "loss", "draw", "no loss", "no win"}};
+    if(label >= label_names.size()) throw std::runtime_error("Invalid outcome label.");
 
-  char byte;
-  file.read(&byte, 1);
-
-  if(position_id % 2 == 1) byte = byte >> 4U;
-  unsigned int val = byte & 15U;
-
-  file.close();
-
-  std::cout << "label index = " << val;
-
-  if (val == v_unknown) std::cout << ", label: unknown" << endl;
-  else if (val == v_win) std::cout << ", label：win" << endl;
-  else if (val == v_lose) std::cout << ", label：lose" << endl;
-  else if (val == v_draw) std::cout << ", label：draw" << endl;
-  else if (val == v_notlose) std::cout << ", label：notlose" << endl;
-  else {
-    assert(val == v_notwin);
-    std::cout << ", lable：notwin" << endl;
+    std::cout << "ID of this configuration: " << configuration_id << "\n";
+    Posi position;
+    position.make_posi(configuration_id, zdd);
+    position.print();
+    std::cout << "label index = " << label << ", label: " << label_names[label] << '\n';
+  } catch (const std::exception& error) {
+    std::cerr << "[error] " << error.what() << '\n';
+    return 1;
   }
 }

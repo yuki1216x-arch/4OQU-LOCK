@@ -1,3 +1,6 @@
+#include <cerrno>
+#include <cstdlib>
+
 #include "table.hpp"
 #include "node.hpp"
 #include "zdd_yonoku.hpp"
@@ -9,215 +12,224 @@ using std::to_string;
 using std::max;
 using std::min;
 
-constexpr unsigned long long int placement_count[2][17] {
+constexpr unsigned long long int configuration_counts[2][17] {
+  {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
+      19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
+      144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
+      666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
     {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
-    19628376768ULL, 8793607680ULL, 2803351824ULL, 811399680ULL,
-    144799200ULL, 61850880ULL, 11571840ULL, 2932160ULL,
-    666080ULL, 102400ULL, 10336ULL, 768ULL, 32ULL},
-    {0ULL, 63952986240ULL, 55896469200ULL, 34197443280ULL,
-    19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
-    144799200ULL, 30925440ULL, 11571840ULL, 2932160ULL,
-    666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
+	19628376768ULL, 6485285664ULL, 2803351824ULL, 540933120ULL,
+	144799200ULL, 30925440ULL, 11571840ULL, 2932160ULL,
+	666080ULL, 73600ULL, 10336ULL, 512ULL, 32ULL}
 };
 
-const string base[2] = {"white_table", "black_table"};
+const string database_prefixes[2] = {"white_table", "black_table"};
 
 int main(int argc, char *argv[]) {
-  int iteration = atoi(argv[1]);
-  int vision = atoi(argv[2]); //0なら白視点, 1なら黒視点
-  unsigned long long int id = atoi(argv[3]);
-  string base_filename = base[vision];
-  string base_filename_opp = base[1 - vision];
-  string read_filename_str = "data/db/" + base_filename + "_" + to_string(iteration) + ".bin";
-  string read_filename_str_child = "data/db/" + base_filename + "_" + to_string(iteration+1) + ".bin";
-  string read_filename_str_child_opp = "data/db/" + base_filename_opp + "_" + to_string(iteration+1) + ".bin";
-  unique_ptr<ZDD> zdd_parent = make_unique<ZDD>(vision, iteration);
-  unique_ptr<ZDD> zdd_child;
-  unique_ptr<ZDD> zdd_child_opp;
+  if(argc != 4 || (string(argv[2]) != "0" && string(argv[2]) != "1")) {
+    cerr << "Usage: " << argv[0] << "ITERATION VIEWPOINT CONFIGURATION_ID (0: White; 1: Black)" << endl;
+    return 1;
+  }
+  char* end = nullptr;
+  const long iteration_arg = std::strtol(argv[1], &end, 10);
+  if(end == argv[1] || *end || iteration_arg < 0 || iteration_arg > 15) {
+    cerr << "Iteration must be between 0 and 15." << endl;
+    return 1;
+  }
+  const int iteration = static_cast<int>(iteration_arg);
+  const int viewpoint = argv[2][0] - '0';
+  errno = 0;
+  const auto configuration_id = std::strtoull(argv[3], &end, 10);
+  if(argv[3][0] < '0' || argv[3][0] > '9' || *end || errno == ERANGE ||
+     configuration_id >= configuration_counts[viewpoint][16 - iteration]) {
+    cerr << "Configuration ID is outside the selected table." << endl;
+    return 1;
+  }
+  string database_prefix = database_prefixes[viewpoint];
+  string opponent_database_prefix = database_prefixes[1 - viewpoint];
+  string parent_database_path = "data/db/" + database_prefix + "_" + to_string(iteration) + ".bin";
+  string child_database_path = "data/db/" + database_prefix + "_" + to_string(iteration + 1) + ".bin";
+  string opponent_child_database_path = "data/db/" + opponent_database_prefix + "_" + to_string(iteration + 1) + ".bin";
+  unique_ptr<ZDD> parent_zdd = make_unique<ZDD>(viewpoint, iteration);
+  unique_ptr<ZDD> child_zdd;
+  unique_ptr<ZDD> opponent_child_zdd;
   if(iteration == 15) {
-    zdd_child = make_unique<ZDD>(vision, iteration);
-    zdd_child_opp = make_unique<ZDD>(1 - vision, iteration);
+    child_zdd = make_unique<ZDD>(viewpoint, iteration);
+    opponent_child_zdd = make_unique<ZDD>(1 - viewpoint, iteration);
   } else {
-    zdd_child = make_unique<ZDD>(vision, iteration + 1);
-    zdd_child_opp = make_unique<ZDD>(1 - vision, iteration + 1);
+    child_zdd = make_unique<ZDD>(viewpoint, iteration + 1);
+    opponent_child_zdd = make_unique<ZDD>(1 - viewpoint, iteration + 1);
   }
   
   size_t bits_per_entry, child_bits_per_entry;
   if(iteration > 12) bits_per_entry = 4, child_bits_per_entry = 4;
   else if(iteration > 11) bits_per_entry = 8, child_bits_per_entry = 4;
   else bits_per_entry = 8, child_bits_per_entry = 8;
-  Table parent_table(16 - iteration, read_filename_str.c_str(), bits_per_entry, placement_count[vision][16 - iteration]);
-  Table child_table(15 -iteration, read_filename_str_child.c_str(), child_bits_per_entry, placement_count[vision][15 - iteration]);
-  Table opp_child_table(15 - iteration, read_filename_str_child_opp.c_str(), child_bits_per_entry, placement_count[1 - vision][15 - iteration]);
+  Table parent_table(16 - iteration, parent_database_path.c_str(), bits_per_entry, configuration_counts[viewpoint][16 - iteration]);
+  Table child_table(15 - iteration, child_database_path.c_str(), child_bits_per_entry, configuration_counts[viewpoint][15 - iteration]);
+  Table opponent_child_table(15 - iteration, opponent_child_database_path.c_str(), child_bits_per_entry, configuration_counts[1 - viewpoint][15 - iteration]);
 
-  if(parent_table.get_value(id) == 1) {
+  if(parent_table.get_value(configuration_id) == v_win) {
     std::cout << "this configuration is win" << endl;
   }
 
-  Posi p;
+  Posi position;
 
-  assert(id < placement_count[vision][16 - iteration]);
-  p.make_posi(id, *zdd_parent);
-  std::cout << "ID of this configuration: " << id << endl;
-  p.print();
+  assert(configuration_id < configuration_counts[viewpoint][16 - iteration]);
+  position.make_posi(configuration_id, *parent_zdd);
+  std::cout << "ID of this configuration: " << configuration_id << endl;
+  position.print();
 
   Action actions[1000] = {};
-  unsigned char board_belief[12][46] = {};
-  int nchild = p.compute_actions(actions, vision, iteration);
-  int num_of_un = p.getunknowninfo(board_belief, vision, iteration);
+  unsigned char compatible_boards[12][46] = {};
+  int action_count_or_result = position.compute_actions(actions, viewpoint, iteration);
+  int belief_state_size = position.getunknowninfo(compatible_boards, viewpoint, iteration);
 
-  int notlose_flg = 0;
+  int no_loss_found = 0;
 
-  int win_game_length, lose_game_length;
-  lose_game_length = -1;
-  if(iteration % 2 == vision) win_game_length = 99;
-  else win_game_length = -1;
+  int win_length, loss_length;
+  loss_length = -1;
+  if(iteration % 2 == viewpoint) win_length = 99;
+  else win_length = -1;
   
-  if(nchild == -1) {
-    win_game_length = 0;
+  if(action_count_or_result == -1) {
+    win_length = 0;
     std::cout << "already win" << endl;
-  } else if(nchild == -2) {
-    lose_game_length = 0;
-    std::cout << "already lose" << endl;
-    std::cout << lose_game_length << endl;
-  } else {
-    // assert(nchild > 0);
+  } else if(action_count_or_result == -2) {
+    loss_length = 0;
+    std::cout << "already loss" << endl;
+    std::cout << loss_length << endl;
   }
   
-  int game_val = 0;
-  int already_decided = 0;
-  int num_of_action = nchild;
-  
-  if(nchild > 0) {
-    for(int which_table = 0; which_table < 2; which_table++) {
-      int win_plan_num = 0; //必勝戦略の数
-      int lose_plan_num = 0; //必敗戦略の数
-      int nlose_plan_num = 0; //負無し戦略の数
-      int nwin_plan_num = 0; //勝無し戦略の数
-      int draw_plan_num = 0; //引分戦略の数
-      int unknown_plan_num = 0; //不明戦略の数
-      for(int j = 0; j < num_of_action; j++) {
-	int kati = 0; //勝ち
-	int make = 0; //負け
-	int makenasi = 0; //負無し
-	int katinasi = 0; //勝無し
-	int hikiwake = 0; //引分
-	int kati_game_length = -1;
-	unsigned long long int num_of_haiti;
-	for(int m = 0; m < num_of_un; m++) {
-	  p.make_posi_n(board_belief, m); // 第3者視点の配置を作る
-	  int board_check = p.make_action(actions[j], vision, iteration);
-	  if(board_check == 0) { // まだ終わってない
-	    if(which_table == 0) { // 子が自分視点
-	      p.make_posi_myself();
-	      num_of_haiti = p.getzddnum(*zdd_child); // 子のZDDから子の配置の番号を取得
-	      int child_table_val = child_table.get_value(num_of_haiti); //子のtableから値を取得
-	      assert(child_table_val >= 0 && child_table_val <= 5);
-	      if(child_table_val == 1) {
-		//視点プレイヤ勝ち
-		kati++;
-		kati_game_length = max((int)child_table.get_game_length(num_of_haiti) + 1, kati_game_length);
-	      } else if(child_table_val == 2) {
-		//視点プレイヤ負け
-		make++;
-	      } else if(child_table_val == 4) {
-		makenasi++;
-	      } else if(child_table_val == 5) {
-		katinasi++;
-	      } else if(child_table_val == 3) {
-		hikiwake++;
+  int classification_result = 0;
+  int classification_decided = 0;
+  int action_count = action_count_or_result;
+
+  // Evaluate each action across all compatible configurations.
+  if(action_count_or_result > 0) {
+    for(int child_view_index = 0; child_view_index < 2; child_view_index++) {
+      int winning_action_count = 0;
+      int losing_action_count = 0;
+      int no_loss_action_count = 0;
+      int no_win_action_count = 0;
+      int drawing_action_count = 0;
+      int unknown_action_count = 0;
+      for(int action_index = 0; action_index < action_count; action_index++) {
+	int winning_child_count = 0;
+	int losing_child_count = 0;
+	int no_loss_child_count = 0;
+	int no_win_child_count = 0;
+	int drawing_child_count = 0;
+	int action_win_length = -1;
+	unsigned long long int child_configuration_id = 0;
+	bool has_child_configuration = false;
+	for(int compatible_index = 0; compatible_index < belief_state_size; compatible_index++) {
+	  position.make_posi_n(compatible_boards, compatible_index);
+	  int action_result = position.make_action(actions[action_index], viewpoint, iteration);
+	  if(action_result == 0) {
+	    has_child_configuration = true;
+	    if(child_view_index == 0) {
+	      position.make_posi_myself();
+	      child_configuration_id = position.getzddnum(*child_zdd);
+	      int child_label = child_table.get_value(child_configuration_id);
+	      assert(child_label >= 0 && child_label <= 5);
+	      if(child_label == v_win) {
+		winning_child_count++;
+		action_win_length = max((int)child_table.get_game_length(child_configuration_id) + 1, action_win_length);
+	      } else if(child_label == v_lose) {
+		losing_child_count++;
+	      } else if(child_label == v_notlose) {
+		no_loss_child_count++;
+	      } else if(child_label == v_notwin) {
+		no_win_child_count++;
+	      } else if(child_label == v_draw) {
+		drawing_child_count++;
 	      }
-	    } else { // 子が相手視点
-	      p.make_posi_opponent();
-	      num_of_haiti = p.getzddnum(*zdd_child_opp); // 子のZDDから子の配置の番号を取得
-	      int child_table_val = opp_child_table.get_value(num_of_haiti); //子のtableから値を取得
-	      assert(child_table_val >= 0 && child_table_val <= 5);
-	      if(child_table_val == 1) {
-		//視点プレイヤ負け
-		make++;
-	      } else if(child_table_val == 2) {
-		//視点プレイヤ勝ち
-		kati++;
-		kati_game_length = max((int)opp_child_table.get_game_length(num_of_haiti) + 1, kati_game_length);
-	      } else if(child_table_val == 4) {
-		katinasi++;
-	      } else if(child_table_val == 5) {
-		makenasi++;
-	      } else if(child_table_val == 3) {
-		hikiwake++;
+	    } else {
+	      position.make_posi_opponent();
+	      child_configuration_id = position.getzddnum(*opponent_child_zdd);
+	      int child_label = opponent_child_table.get_value(child_configuration_id);
+	      assert(child_label >= 0 && child_label <= 5);
+	      if(child_label == v_win) {
+		losing_child_count++;
+	      } else if(child_label == v_lose) {
+		winning_child_count++;
+		action_win_length = max((int)opponent_child_table.get_game_length(child_configuration_id) + 1, action_win_length);
+	      } else if(child_label == v_notlose) {
+		no_win_child_count++;
+	      } else if(child_label == v_notwin) {
+		no_loss_child_count++;
+	      } else if(child_label == v_draw) {
+		drawing_child_count++;
 	      }
 	    }
 	  } else {
-	    if(board_check == 3) {
-	      //視点プレイヤ負け
-	      make++;
-	    } else if(board_check == 2) {
-	      //視点プレイヤ勝ち
-	      kati++;
-	      kati_game_length = max(1, kati_game_length);
-	    } else if(board_check == 10) {
-	      //引分
-	      hikiwake++;
+	    if(action_result == 3) {
+	      losing_child_count++;
+	    } else if(action_result == 2) {
+	      winning_child_count++;
+	      action_win_length = max(1, action_win_length);
+	    } else if(action_result == 10) {
+	      drawing_child_count++;
 	    }
 	  }
 	}
 	
-	if(kati == num_of_un) { //必勝
-	  std::cout << "child number " << j << " is win(table" << which_table << ")" << endl;
-	  std::cout << "Action is (" << actions[j].po << ", " << actions[j].loc1 << ", " << actions[j].loc2 << ", " << actions[j].loc3 << ")" << endl;
-	  std::cout << "after id is " << num_of_haiti << endl;
-	  std::cout << "game_length = " << kati_game_length << endl;
+	if(winning_child_count == belief_state_size) {
+	  std::cout << "child number " << action_index << " is win(table" << child_view_index << ")" << endl;
+	  std::cout << "Action is (" << actions[action_index].po << ", " << actions[action_index].loc1 << ", " << actions[action_index].loc2 << ", " << actions[action_index].loc3 << ")" << endl;
+	  if(has_child_configuration) std::cout << "after id is " << child_configuration_id << endl;
+	  std::cout << "game_length = " << action_win_length << endl;
 	  std::cout << endl;
-	  if(iteration % 2 == vision) { //手番プレイヤが視点プレイヤのとき
-	    if(already_decided != 1) {
-	      game_val = -4;
+	  if(iteration % 2 == viewpoint) {
+	    if(classification_decided != 1) {
+	      classification_result = -4;
 	    }
-	    already_decided = 1;
-	    win_game_length = min(kati_game_length, win_game_length);
+	    classification_decided = 1;
+	    win_length = min(action_win_length, win_length);
 	  } else {
-	    win_plan_num++;
-	    win_game_length = max(kati_game_length, win_game_length);
+	    winning_action_count++;
+	    win_length = max(action_win_length, win_length);
 	  }
-	} else if(kati + makenasi + hikiwake == num_of_un) { //負無し
-	  if(hikiwake == num_of_un) { //引分
-	    draw_plan_num++;
+	} else if(winning_child_count + no_loss_child_count + drawing_child_count == belief_state_size) {
+	  if(drawing_child_count == belief_state_size) {
+	    drawing_action_count++;
 	  } else {
-	    nlose_plan_num++;
+	    no_loss_action_count++;
 	  }
-	} else if(make == num_of_un) { //必敗
-	  lose_plan_num++;                    
-	} else if(make + katinasi + hikiwake == num_of_un) { //勝無し
-	  nwin_plan_num++;
+	} else if(losing_child_count == belief_state_size) {
+	  losing_action_count++;
+	} else if(losing_child_count + no_win_child_count + drawing_child_count == belief_state_size) {
+	  no_win_action_count++;
 	} else {
-	  unknown_plan_num++;
+	  unknown_action_count++;
 	}
-	if(j == num_of_action - 1 && iteration % 2 == vision) {
-	  if(nlose_plan_num > 0 || draw_plan_num > 0) {
-	    if(already_decided != 1) notlose_flg = 1;
-	    already_decided = 1;
+	if(action_index == action_count - 1 && iteration % 2 == viewpoint) {
+	  if(no_loss_action_count > 0 || drawing_action_count > 0) {
+	    if(classification_decided != 1) no_loss_found = 1;
+	    classification_decided = 1;
 	  }
 	}
       }
-      //すべての合法手を確認した後
-      if(already_decided == 0) {
-	if(win_plan_num == num_of_action) {
-	  game_val = -4; //必勝を与える
-	} else if(nlose_plan_num + win_plan_num + draw_plan_num == num_of_action) {
-	  notlose_flg = 1;
+      
+      if(classification_decided == 0) {
+	if(winning_action_count == action_count) {
+	  classification_result = -4;
+	} else if(no_loss_action_count + winning_action_count + drawing_action_count == action_count) {
+	  no_loss_found = 1;
 	}
       }      
-      if(game_val < 0) {
-	nchild = game_val;
+      if(classification_result < 0) {
+	action_count_or_result = classification_result;
 	break;
-      } else if(notlose_flg == 1) {
+      } else if(no_loss_found == 1) {
 	break;
-	// p.make_posi(id, zdd_parent);
       }
     }
   }
-  if(nchild == -2 || nchild == -4) {
+  if(action_count_or_result == -1 || action_count_or_result == -4) {
     std::cout << "result is win" << endl;
-    std::cout << "win game length is " << win_game_length << endl;
+    std::cout << "win game length is " << win_length << endl;
   }
 
   return 0;
