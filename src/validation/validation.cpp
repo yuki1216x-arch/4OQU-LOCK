@@ -84,7 +84,7 @@ namespace {
     return true;
   }
 
-  bool validate_subtree(Node_base& node, ObjectIds& enumerated_objects, const ZDD& zdd, int depth, ConfigurationId& next_configuration_id, int iteration, int viewpoint) {
+  bool validate_subtree(ZddNode& node, ObjectIds& enumerated_objects, const ZDD& zdd, int depth, ConfigurationId& next_configuration_id, int iteration, int viewpoint) {
     if(depth == terminal_depth) {
       if(!validate_configuration(enumerated_objects, zdd, next_configuration_id)) return false;
       ++next_configuration_id;
@@ -93,14 +93,14 @@ namespace {
 
     // Visit branch 0 before branch 1 to match the ZDD's configuration order.
     for(int branch = 0; branch < 2; ++branch) {
-      if(node.IsNextLeaf0(depth, branch, iteration)) continue;
+      if(node.branch_leads_to_zero_terminal(depth, branch, iteration)) continue;
 
-      std::unique_ptr<Node_base> child;
-      if(viewpoint == 0) child = std::make_unique<Node_White>(node, branch);
-      else child = std::make_unique<Node_Black>(node, branch);
+      std::unique_ptr<ZddNode> child;
+      if(viewpoint == 0) child = std::make_unique<WhiteViewNode>(node, branch);
+      else child = std::make_unique<BlackViewNode>(node, branch);
 
       // Only branch 1 selects the current object's state.
-      if(branch == 1) enumerated_objects.push_back(node.get_loc_stateid());
+      if(branch == 1) enumerated_objects.push_back(node.get_object_state_id());
       const bool valid = validate_subtree(*child, enumerated_objects, zdd, depth + 1, next_configuration_id, iteration, viewpoint);
       if(branch == 1) enumerated_objects.pop_back();
       if(!valid) return false;
@@ -280,9 +280,9 @@ int main(int argc, char* argv[]) {
   try {
     const ZDD zdd(viewpoint, iteration);
     if(argc != 4) {
-      std::unique_ptr<Node_base> root;
-      if(viewpoint == 0) root = std::make_unique<Node_White>();
-      else root = std::make_unique<Node_Black>();
+      std::unique_ptr<ZddNode> root;
+      if(viewpoint == 0) root = std::make_unique<WhiteViewNode>();
+      else root = std::make_unique<BlackViewNode>();
   
       ObjectIds enumerated_objects;
       enumerated_objects.reserve(object_count);
