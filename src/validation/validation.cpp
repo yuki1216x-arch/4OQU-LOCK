@@ -58,7 +58,7 @@ namespace {
     }
 
     std::array<unsigned char, object_count> decoded_objects{};
-    zdd.compute_array(configuration_id, decoded_objects.data(), decoded_objects.size());
+    zdd.decode_configuration(configuration_id, decoded_objects.data(), decoded_objects.size());
     for(std::size_t object_index = 0; object_index < object_count; ++object_index) {
       if(enumerated_objects[object_index] != decoded_objects[object_index]) {
 	std::cerr << "[error] ZDD decoding mismatch for configuration " << configuration_id
@@ -69,7 +69,7 @@ namespace {
       }
     }
 
-    const auto encoded_id = zdd.compute_id(enumerated_objects.data(), enumerated_objects.size());
+    const auto encoded_id = zdd.encode_configuration(enumerated_objects.data(), enumerated_objects.size());
     if(encoded_id != configuration_id) {
       std::cerr << "[error] ZDD encoding mismatch: expected ID " << configuration_id
 		<< ", got " << encoded_id << '\n';

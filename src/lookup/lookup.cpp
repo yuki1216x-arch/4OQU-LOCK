@@ -97,13 +97,13 @@ int main(int argc, char* argv[]) {
   try {
     auto objects = parse_position(argv[3]);
     const ZDD zdd(viewpoint, iteration);
-    const auto configuration_id = zdd.compute_id(objects.data(), objects.size());
+    const auto configuration_id = zdd.encode_configuration(objects.data(), objects.size());
     const auto configuration_count = configuration_counts[viewpoint][16 - iteration];
     if(configuration_id >= configuration_count)
       throw std::runtime_error("Position is outside the selected table.");
     // Reject a well-formed position that is absent from the selected ZDD.
     std::array<unsigned char, 32> decode{};
-    zdd.compute_array(configuration_id, decode.data(), decode.size());
+    zdd.decode_configuration(configuration_id, decode.data(), decode.size());
     if(decode != objects) throw std::runtime_error("Position is outside the selected table.");
     const std::string database_path = std::string("data/db/") +
       (viewpoint == 0 ? "white_table_" : "black_table_") + std::to_string(iteration) + ".bin";

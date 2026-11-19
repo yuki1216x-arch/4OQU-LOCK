@@ -51,7 +51,7 @@ Posi::Posi() noexcept {
 
 Posi::Posi(unsigned long long int x, const ZDD& zdd) noexcept {
   unsigned char array_objid[32];
-  zdd.compute_array(x, array_objid, 32);
+  zdd.decode_configuration(x, array_objid, 32);
   for(int loc = 0; loc < 46; loc++){
     unsigned int locid = tbl_loc2locid[loc];
     assert(locid < 32 || locid == 99);
@@ -68,7 +68,7 @@ Posi::Posi(unsigned long long int x, const ZDD& zdd) noexcept {
 
 void Posi::make_posi(unsigned long long int x, const ZDD& zdd) noexcept {
   unsigned char array_objid[32];
-  zdd.compute_array(x, array_objid, 32);
+  zdd.decode_configuration(x, array_objid, 32);
   
   for(int loc = 0; loc < 46; loc++){
     unsigned int locid = tbl_loc2locid[loc];
@@ -569,7 +569,7 @@ unsigned long long int Posi::getzddnum(const ZDD& zdd) const noexcept {
       before_array_iter++;
     }
   }
-  return zdd.compute_id(before_array, 32);
+  return zdd.encode_configuration(before_array, 32);
 }
 
 bool Posi::exist_action() const noexcept {
