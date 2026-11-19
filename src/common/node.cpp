@@ -68,19 +68,19 @@ bool NodeObjectInfo::is_valid() const noexcept {
 
 const NodeObjectInfo board_object_info[8] =
   { NodeObjectInfo('.', '.', 0, 0, 0, 0, '.'), //0
-    NodeObjectInfo('W', '.', 1, 0, 1, 0, 'W'), //1
-    NodeObjectInfo('B', '.', 1, 1, 0, 0, 'B'), //2
-    NodeObjectInfo('W', 'W', 2, 0, 2, 0, 'W'), //3
+    NodeObjectInfo('W', '.', 1, 1, 0, 0, 'W'), //1
+    NodeObjectInfo('B', '.', 1, 0, 1, 0, 'B'), //2
+    NodeObjectInfo('W', 'W', 2, 2, 0, 0, 'W'), //3
     NodeObjectInfo('W', 'B', 2, 1, 1, 0, 'B'), //4
     NodeObjectInfo('B', 'W', 2, 1, 1, 0, 'W'), //5
-    NodeObjectInfo('B', 'B', 2, 2, 0, 0, 'B'), //6
+    NodeObjectInfo('B', 'B', 2, 0, 2, 0, 'B'), //6
     NodeObjectInfo('N', 'N', 99, 99, 99, 99, 'E') // 7
 };
 
 const NodeObjectInfo hand_object_info[5] =
   { NodeObjectInfo('.', '.', 0, 0, 0, 0, '.'), //0
-    NodeObjectInfo('W', '.', 1, 0, 1, 0, 'W'), //1
-    NodeObjectInfo('B', '.', 1, 1, 0, 0, 'B'), //2
+    NodeObjectInfo('W', '.', 1, 1, 0, 0, 'W'), //1
+    NodeObjectInfo('B', '.', 1, 0, 1, 0, 'B'), //2
     NodeObjectInfo('U', '.', 1, 0, 0, 1, 'U'), //3
     NodeObjectInfo('N', 'N', 99, 99, 99, 99, 'E') //4
 };

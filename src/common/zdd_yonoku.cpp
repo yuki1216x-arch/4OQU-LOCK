@@ -176,7 +176,7 @@ void ZDD::construct_zdd(int vision, int nmove) noexcept {
 	  if(m_N[i][j]->m_zero_child->m_one_child->is_zero_terminal()){
 	    end = 1;
 	    m_N[i][j]->m_zero_child->mark_redundant();
-	    m_N[i][j]->m_one_child = m_N[i][j]->m_zero_child->m_zero_child;
+	    m_N[i][j]->m_zero_child = m_N[i][j]->m_zero_child->m_zero_child;
 	  }
 	}
 	//cout << end << endl;
